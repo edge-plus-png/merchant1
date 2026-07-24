@@ -111,6 +111,7 @@ export function verifyHQAccessTicket(
   const [headerValue, payloadValue, signatureValue, extra] = token.split(".");
 
   if (!headerValue || !payloadValue || !signatureValue || extra) {
+    console.warn("HQ access ticket rejected", { reason: "malformed" });
     return null;
   }
 
@@ -126,20 +127,33 @@ export function verifyHQAccessTicket(
     );
     const currentTime = Math.floor(now.getTime() / 1000);
     const expectedOrigin = new URL(expected.portalOrigin).origin;
+    const checks = {
+      signatureValid,
+      businessMatches: payload.targetBusiness.id === expected.businessId,
+      originMatches: payload.targetBusiness.portalOrigin === expectedOrigin,
+      issuedAtValid: payload.issuedAt <= currentTime + 5,
+      notExpired: payload.expiresAt > currentTime,
+      lifetimeValid: payload.expiresAt - payload.issuedAt <= 120,
+    };
 
     if (
-      !signatureValid ||
-      payload.targetBusiness.id !== expected.businessId ||
-      payload.targetBusiness.portalOrigin !== expectedOrigin ||
-      payload.issuedAt > currentTime + 5 ||
-      payload.expiresAt <= currentTime ||
-      payload.expiresAt - payload.issuedAt > 120
+      !checks.signatureValid ||
+      !checks.businessMatches ||
+      !checks.originMatches ||
+      !checks.issuedAtValid ||
+      !checks.notExpired ||
+      !checks.lifetimeValid
     ) {
+      console.warn("HQ access ticket rejected", checks);
       return null;
     }
 
     return payload;
-  } catch {
+  } catch (error) {
+    console.warn("HQ access ticket rejected", {
+      reason: "exception",
+      errorName: error instanceof Error ? error.name : "unknown",
+    });
     return null;
   }
 }
