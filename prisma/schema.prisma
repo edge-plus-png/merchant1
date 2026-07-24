@@ -1,0 +1,91 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PortalRole {
+  OWNER
+  ADMIN
+  MEMBER
+  LITE
+}
+
+enum PortalUserStatus {
+  ACTIVE
+  DISABLED
+}
+
+model Business {
+  id               String                   @id @default(cuid())
+  slug             String                   @unique
+  name             String
+  timezone         String                   @default("Europe/London")
+  currency         String                   @default("GBP")
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+  memberships      BusinessMembership[]
+  capabilityAccess PortalCapabilityAccess[]
+}
+
+model PortalUser {
+  id               String                   @id @default(cuid())
+  email            String                   @unique
+  name             String
+  passwordHash     String
+  status           PortalUserStatus         @default(ACTIVE)
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+  memberships      BusinessMembership[]
+  capabilityAccess PortalCapabilityAccess[]
+}
+
+model BusinessMembership {
+  id               String                   @id @default(cuid())
+  businessId       String
+  userId           String
+  role             PortalRole               @default(MEMBER)
+  isActive         Boolean                  @default(true)
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+  business         Business                 @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user             PortalUser               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions         PortalSession[]
+  capabilityAccess PortalCapabilityAccess[]
+
+  @@unique([businessId, userId])
+  @@index([userId, isActive])
+}
+
+model PortalSession {
+  id           String             @id @default(cuid())
+  tokenHash    String             @unique
+  membershipId String
+  expiresAt    DateTime
+  lastSeenAt   DateTime           @default(now())
+  createdAt    DateTime           @default(now())
+  membership   BusinessMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@index([membershipId])
+  @@index([expiresAt])
+}
+
+model PortalCapabilityAccess {
+  id                    String             @id @default(cuid())
+  businessId            String
+  userId                String
+  membershipId          String
+  registryCapabilityRef String
+  capabilitySlug        String
+  createdAt             DateTime           @default(now())
+  business              Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user                  PortalUser         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  membership            BusinessMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@unique([membershipId, registryCapabilityRef])
+  @@index([businessId, capabilitySlug])
+  @@index([userId])
+}

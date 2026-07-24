@@ -1,0 +1,27 @@
+# dependencies
+/node_modules
+
+# Next.js
+/.next
+/out
+
+# tests and coverage
+/coverage
+/playwright-report
+/test-results
+
+# local environment
+.env
+.env.local
+.env.*.local
+
+# Vercel local link
+.vercel
+
+# generated Prisma client artifacts
+/src/generated
+
+# misc
+.DS_Store
+*.log
+*.tsbuildinfo
