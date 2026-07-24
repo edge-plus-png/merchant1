@@ -19,16 +19,47 @@ enum PortalUserStatus {
   DISABLED
 }
 
+enum HQType {
+  EDGE
+  AFFILIATE
+}
+
+enum HQRole {
+  ADMIN
+  OPERATOR
+}
+
+enum HQAccessMode {
+  SUPPORT_READ_ONLY
+}
+
+enum HQAccessAuditAction {
+  TICKET_ISSUED
+  SUPPORT_SESSION_CREATED
+}
+
+enum MerchantStatus {
+  PROVISIONING
+  READY
+}
+
 model Business {
-  id               String                   @id @default(cuid())
-  slug             String                   @unique
-  name             String
-  timezone         String                   @default("Europe/London")
-  currency         String                   @default("GBP")
-  createdAt        DateTime                 @default(now())
-  updatedAt        DateTime                 @updatedAt
-  memberships      BusinessMembership[]
-  capabilityAccess PortalCapabilityAccess[]
+  id                String                       @id @default(cuid())
+  slug              String                       @unique
+  name              String
+  portalUrl         String?
+  status            MerchantStatus               @default(PROVISIONING)
+  timezone          String                       @default("Europe/London")
+  currency          String                       @default("GBP")
+  createdAt         DateTime                     @default(now())
+  updatedAt         DateTime                     @updatedAt
+  memberships       BusinessMembership[]
+  capabilityAccess  PortalCapabilityAccess[]
+  hqAssignments     HQBusinessAssignment[]
+  hqSupportSessions HQSupportSession[]
+  hqAccessAudits    HQAccessAuditEvent[]
+  hqStatusAudits    HQMerchantStatusAuditEvent[]
+  consumedTickets   HQAccessTicketNonce[]
 }
 
 model PortalUser {
@@ -88,4 +119,138 @@ model PortalCapabilityAccess {
   @@unique([membershipId, registryCapabilityRef])
   @@index([businessId, capabilitySlug])
   @@index([userId])
+}
+
+model HQ {
+  id          String                 @id @default(cuid())
+  slug        String                 @unique
+  name        String
+  type        HQType
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  memberships HQMembership[]
+  assignments HQBusinessAssignment[]
+}
+
+model HQBusinessAssignment {
+  id         String    @id @default(cuid())
+  hqId       String
+  businessId String
+  assignedAt DateTime  @default(now())
+  removedAt  DateTime?
+  assignedBy String?
+  hq         HQ        @relation(fields: [hqId], references: [id], onDelete: Cascade)
+  business   Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([hqId, businessId])
+  @@index([businessId, removedAt])
+}
+
+model HQUser {
+  id           String           @id @default(cuid())
+  email        String           @unique
+  name         String
+  passwordHash String
+  status       PortalUserStatus @default(ACTIVE)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  memberships  HQMembership[]
+}
+
+model HQMembership {
+  id        String      @id @default(cuid())
+  hqId      String
+  userId    String
+  role      HQRole      @default(OPERATOR)
+  isActive  Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  hq        HQ          @relation(fields: [hqId], references: [id], onDelete: Cascade)
+  user      HQUser      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions  HQSession[]
+
+  @@unique([hqId, userId])
+  @@index([userId, isActive])
+}
+
+model HQSession {
+  id           String       @id @default(cuid())
+  tokenHash    String       @unique
+  membershipId String
+  expiresAt    DateTime
+  lastSeenAt   DateTime     @default(now())
+  createdAt    DateTime     @default(now())
+  membership   HQMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@index([membershipId])
+  @@index([expiresAt])
+}
+
+model HQSupportSession {
+  id              String       @id @default(cuid())
+  tokenHash       String       @unique
+  businessId      String
+  originHqId      String
+  originHqName    String
+  hqUserId        String
+  operatorName    String
+  operatorEmail   String
+  accessMode      HQAccessMode
+  ticketIssuedAt  DateTime
+  expiresAt       DateTime
+  auditIdentifier String
+  createdAt       DateTime     @default(now())
+  lastSeenAt      DateTime     @default(now())
+  business        Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, expiresAt])
+  @@index([auditIdentifier])
+}
+
+model HQAccessAuditEvent {
+  id              String              @id @default(cuid())
+  auditIdentifier String
+  action          HQAccessAuditAction
+  businessId      String
+  originHqId      String
+  originHqName    String
+  hqUserId        String
+  operatorName    String
+  operatorEmail   String
+  accessMode      HQAccessMode
+  ticketIssuedAt  DateTime
+  expiresAt       DateTime
+  createdAt       DateTime            @default(now())
+  business        Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([auditIdentifier, createdAt])
+  @@index([businessId, createdAt])
+}
+
+model HQMerchantStatusAuditEvent {
+  id             String         @id @default(cuid())
+  businessId     String
+  previousStatus MerchantStatus
+  newStatus      MerchantStatus
+  hqId           String
+  hqUserId       String
+  operatorName   String
+  operatorEmail  String
+  createdAt      DateTime       @default(now())
+  business       Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, createdAt])
+  @@index([hqId, createdAt])
+}
+
+model HQAccessTicketNonce {
+  nonce           String   @id
+  businessId      String
+  auditIdentifier String
+  expiresAt       DateTime
+  consumedAt      DateTime @default(now())
+  business        Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@index([businessId, consumedAt])
 }

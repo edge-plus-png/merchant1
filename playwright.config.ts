@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const baseURL = "http://127.0.0.1:3100";
+const baseURL = "http://edge-demo.localhost:3100";
 const demoMode = process.env.PORTAL_DEMO_MODE ?? "true";
 
 export default defineConfig({
@@ -19,7 +19,7 @@ export default defineConfig({
   webServer: {
     command:
       `PORTAL_DEMO_MODE=${demoMode} npm run dev -- --hostname 127.0.0.1 --port 3100`,
-    url: `${baseURL}/api/health`,
+    url: "http://127.0.0.1:3100/api/health",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },

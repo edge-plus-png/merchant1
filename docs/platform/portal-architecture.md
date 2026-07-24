@@ -1,10 +1,20 @@
 # Portal Architecture
 
-## What Portal is
+## The three products
 
-Portal is the control plane. It is the only system that owns identity, merchant records, payments, and shared settings. Everything else — Move, Events, Storefront, and any future first-party feature — is a **capability**: an independently built and independently deployed application that Portal launches a user into, and that Portal has granted a specific merchant access to.
+GetEdgePortal consists of three products with separate identity and session boundaries:
 
-Portal owns, exclusively:
+1. **HQ** — the cross-merchant management product for Edge and affiliate organisations.
+2. **Merchant Portal** — the merchant control plane. Each merchant uses only its own Portal deployment and business context.
+3. **Capabilities** — independently deployed first-party applications launched by Merchant Portal in a merchant context.
+
+HQ is not a route area or role inside Merchant Portal. Merchant Portal is not a business selector or a view into HQ. A capability is not an extension of either product's session.
+
+## What Merchant Portal owns
+
+Merchant Portal owns merchant identity, merchant records, payments, and shared settings. Move, Events, Storefront, and any future first-party feature remain capabilities that Merchant Portal launches for an entitled merchant.
+
+Merchant Portal owns, exclusively:
 
 - Login and Portal user accounts (Owner, Admin, and merchant-scoped roles)
 - Business/merchant records (one merchant = one Portal-managed record, regardless of how many capabilities that merchant uses)
@@ -62,6 +72,22 @@ There is exactly one **Platform Organisation**. It is not a merchant, not create
 - **Merchant Owners/Admins** may only toggle `PortalCapabilityAccess` for their own merchant's own Portal users, scoped to capabilities their merchant already holds a `MerchantCapability` grant for. They cannot register new capabilities and cannot grant themselves access to a capability they haven't been entitled to.
 - A capability itself has no concept of a "Portal user" — see [`../capabilities/signed-launch-ticket.md`](../capabilities/signed-launch-ticket.md) for what identity a capability actually receives at launch.
 
+## What HQ owns
+
+HQ owns HQ identities, memberships, HQ sessions, the merchant directory visible to HQ, affiliate-to-business assignments, merchant-access ticket issuance, and HQ-side audit evidence. Edge HQ has global business visibility; affiliate HQ visibility is derived only from explicit assignments.
+
+An authorised HQ operator may enter a merchant's own Portal through a signed, short-lived, one-use merchant-access ticket. Merchant Portal creates a separately typed HQ-managed session. The operator remains an HQ identity and is never made a merchant Owner, merchant user, or `BusinessMembership` member. Merchant Portal displays an unambiguous HQ-managed-session indicator.
+
+The HQ-to-Merchant ticket and session are separate from the Merchant Portal-to-capability launch ticket and session. See [`hq-architecture.md`](hq-architecture.md), [`hq-data-model.md`](hq-data-model.md), and [`../decisions/0007-hq-merchant-access.md`](../decisions/0007-hq-merchant-access.md).
+
+## Product identity boundaries
+
+- HQ users authenticate only to HQ. An HQ membership grants no merchant membership and no capability account.
+- Merchant users authenticate only to their own Merchant Portal. They cannot use HQ routes or exchange HQ merchant-access tickets.
+- Capabilities receive a merchant-context launch, not an HQ identity to provision as an application user.
+- Platform Administrator authority in the Platform Registry remains a separate authorization plane; Edge HQ membership does not implicitly create Platform Administrator authority.
+- Cookies and sessions are host-scoped and are not shared across products.
+
 ## Open questions
 
-None outstanding as of this writing. The platform-administrator authentication question is resolved in [`../decisions/0006-platform-administrator-authority.md`](../decisions/0006-platform-administrator-authority.md).
+HQ-specific questions still requiring a decision are recorded in [`hq-architecture.md`](hq-architecture.md). The platform-administrator authentication question remains resolved in [`../decisions/0006-platform-administrator-authority.md`](../decisions/0006-platform-administrator-authority.md).

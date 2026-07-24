@@ -4,7 +4,7 @@ This is the single SSO mechanism used by every first-party capability — Move, 
 
 ## Mechanism
 
-Asymmetric signing, held centrally. The signing private key lives in the Platform Registry (see [`../platform/portal-architecture.md`](../platform/portal-architecture.md), "Where platform data lives") — one key per environment tier, not one per merchant deployment. No individual merchant's Portal deployment holds or has access to the private key itself. When a Portal user clicks launch, that merchant's own Portal deployment calls its tier's Registry (`portalapp-registry-staging` or `portalapp-registry-production`) as an internal signing service, supplying the merchant, capability, and initiating user; the Registry signs and returns the ticket. Capabilities never hold the private key either — they fetch the Registry's current public key (via the reference published in the capability's own `.well-known/getedge-capability.json`, see [`capability-starter.md`](capability-starter.md)) and use it only to verify signatures. A capability that can verify a ticket cannot forge one.
+Asymmetric signing, held centrally. The signing private key lives in the Platform Registry (see [`../platform/portal-architecture.md`](../platform/portal-architecture.md), "Where platform data lives") — one key per environment tier, not one per merchant deployment. No individual merchant's Portal deployment holds or has access to the private key itself. When an authorized Merchant Portal principal requests a launch, that merchant's own Portal deployment calls its tier's Registry (`portalapp-registry-staging` or `portalapp-registry-production`) as an internal signing service, supplying the merchant, capability, and an opaque initiating-principal audit reference; the Registry signs and returns the ticket. The principal is normally a merchant user, but may be a merchant-local HQ-managed session when its access mode permits the action. Capabilities never hold the private key either — they fetch the Registry's current public key (via the reference published in the capability's own `.well-known/getedge-capability.json`, see [`capability-starter.md`](capability-starter.md)) and use it only to verify signatures. A capability that can verify a ticket cannot forge one.
 
 ## Ticket shape
 
@@ -15,7 +15,7 @@ Asymmetric signing, held centrally. The signing private key lives in the Platfor
 | `merchantId` | The merchant this session is for |
 | `merchantName` | Display name, for the capability's own UI — not authoritative, the capability should treat `merchantId` as the source of truth |
 | `environment` | `staging` or `production` — a ticket issued for one must be rejected by a capability instance running in the other |
-| `initiatedBy` | Which Portal user clicked launch, for audit logging only |
+| `initiatedBy` | Opaque Merchant Portal audit reference for the principal that requested launch. For an HQ-managed session this is the merchant-local HQ-session audit identifier, not an HQ application user identity. |
 | `expiresAt` | Absolute expiry, short-lived (on the order of seconds, not minutes) |
 | `nonce` | Single-use identifier |
 
@@ -34,6 +34,7 @@ A ticket that fails any check is rejected outright. There is no partial trust an
 ## What a ticket does not do
 
 - It does not provision a user inside the capability. `initiatedBy` is an audit field, not a create-user instruction.
+- It does not carry an HQ session or grant HQ authority to the capability. Any HQ-managed action is authorized by Merchant Portal before ticket issuance.
 - It does not establish a shared cookie or shared session with Portal. Once the capability accepts the ticket, it creates its own session, entirely separate from Portal's. See [`../decisions/0004-no-shared-cookies.md`](../decisions/0004-no-shared-cookies.md).
 - It is not reusable. One ticket authorizes the creation of exactly one capability session. A second launch, even seconds later, requires a fresh ticket.
 

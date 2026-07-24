@@ -4,19 +4,32 @@ import { LoginForm } from "@/components/login-form";
 import { Logo } from "@/components/logo";
 import { MerchantIllustration } from "@/components/merchant-illustration";
 import { getPortalContext } from "@/lib/auth/session";
+import { getHQContext } from "@/lib/hq-auth/session";
+import { getHQStore } from "@/lib/hq-store";
+import { getPortalSurface } from "@/lib/surface";
 
 export const metadata: Metadata = { title: "Sign in" };
 
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; setup?: string }>;
 }) {
-  if (await getPortalContext()) {
-    redirect("/portal");
+  const surface = await getPortalSurface();
+
+  if (surface === "HQ") {
+    if (!(await getHQStore().isSetupComplete())) {
+      redirect("/setup");
+    }
+
+    if (await getHQContext()) {
+      redirect("/dashboard");
+    }
+  } else if (await getPortalContext()) {
+    redirect("/dashboard");
   }
 
-  const { error } = await searchParams;
+  const { error, setup } = await searchParams;
 
   return (
     <main className="login-page">
@@ -32,10 +45,22 @@ export default async function LoginPage({
       </aside>
       <section className="login-workspace">
         <div className="login-card">
-          <h1>Welcome back</h1>
-          <p>Sign in to manage your business.</p>
+          <h1>{surface === "HQ" ? "HQ access" : "Welcome back"}</h1>
+          <p>
+            {surface === "HQ"
+              ? "Sign in to manage authorised merchants."
+              : "Sign in to manage your business."}
+          </p>
           <div className="login-rule" />
-          <LoginForm hasError={error === "invalid"} />
+          {setup === "complete" ? (
+            <p className="success-notice login-success" role="status">
+              Master account created. Sign in to continue.
+            </p>
+          ) : null}
+          <LoginForm
+            action={surface === "HQ" ? "/api/hq-auth/login" : "/api/auth/login"}
+            hasError={error === "invalid"}
+          />
         </div>
         <MerchantIllustration />
         <p className="login-footnote">

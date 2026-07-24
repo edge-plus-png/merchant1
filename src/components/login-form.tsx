@@ -3,11 +3,17 @@
 import { useState } from "react";
 import { Icon } from "@/components/icons";
 
-export function LoginForm({ hasError }: { hasError: boolean }) {
+export function LoginForm({
+  action = "/api/auth/login",
+  hasError,
+}: {
+  action?: string;
+  hasError: boolean;
+}) {
   const [showPassword, setShowPassword] = useState(false);
 
   return (
-    <form action="/api/auth/login" className="login-form" method="post">
+    <form action={action} className="login-form" method="post">
       {hasError ? (
         <p className="form-error" role="alert">
           The email address or password was not recognised.

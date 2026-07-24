@@ -5,18 +5,15 @@ import {
 } from "@/lib/auth/authorization";
 
 describe("Portal role access", () => {
-  it.each(["OWNER", "ADMIN"] as const)(
-    "allows %s to reach Users, Settings, and Apps",
+  it.each(["OWNER", "ADMIN", "MEMBER", "LITE"] as const)(
+    "allows %s to reach the merchant dashboard",
     (role) => {
-      expect(canAccessArea(role, "USERS")).toBe(true);
-      expect(canAccessArea(role, "SETTINGS")).toBe(true);
-      expect(canAccessArea(role, "APPS")).toBe(true);
+      expect(canAccessArea(role, "DASHBOARD")).toBe(true);
+      expect(visiblePortalAreas(role)).toEqual(["DASHBOARD"]);
     },
   );
 
-  it("keeps Lite in the shell but denies Apps", () => {
-    expect(canAccessArea("LITE", "OVERVIEW")).toBe(true);
-    expect(canAccessArea("LITE", "APPS")).toBe(false);
-    expect(visiblePortalAreas("LITE")).toEqual(["OVERVIEW"]);
+  it("allows an HQ-managed session into the dashboard only", () => {
+    expect(canAccessArea("HQ_SUPPORT", "DASHBOARD")).toBe(true);
   });
 });

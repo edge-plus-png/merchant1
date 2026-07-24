@@ -1,6 +1,12 @@
 import Link from "next/link";
 
-export function Logo({ linked = true }: { linked?: boolean }) {
+export function Logo({
+  destination = "/dashboard",
+  linked = true,
+}: {
+  destination?: string;
+  linked?: boolean;
+}) {
   const wordmark = (
     <span className="logo-wordmark" aria-label="GetEdgePortal">
       <span>GetEdge</span>
@@ -9,7 +15,7 @@ export function Logo({ linked = true }: { linked?: boolean }) {
   );
 
   return linked ? (
-    <Link className="logo" href="/portal">
+    <Link className="logo" href={destination}>
       {wordmark}
     </Link>
   ) : (

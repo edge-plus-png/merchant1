@@ -30,6 +30,20 @@ The one central store for cross-merchant Platform data: the Platform Organisatio
 
 Every merchant deployment (and every verification project) queries its tier's Registry live rather than keeping a local copy of it.
 
+## HQ projects
+
+HQ is a separate product and deployment, not a route area inside Merchant Portal.
+Its staging and production environments have separate projects, databases, signing
+keys, identities, sessions, directory data, replay state, and audit evidence. See
+[`../decisions/0007-hq-merchant-access.md`](../decisions/0007-hq-merchant-access.md)
+and
+[`../decisions/0010-hq-staging-and-production.md`](../decisions/0010-hq-staging-and-production.md).
+
+| Vercel project | Branch | Domain | Purpose |
+|---|---|---|---|
+| `portalapp-hq-staging` | `staging` | Temporary Vercel URL first; then `hq-staging.getedgeportal.app` | HQ development and end-to-end verification using staging-only data and keys |
+| `portalapp-hq` | `main` / release | `hq.getedgeportal.app` | Production HQ authentication, merchant directory, merchant-access ticket issuance, and HQ-side audit |
+
 ## Capability projects
 
 Each capability (Move, Events, Storefront) gets its own pair of Vercel projects, matching Portal's staging/template split, but capabilities do not have a "per-merchant deployment" the way Portal does — one running capability instance serves all merchants entitled to it, distinguishing merchants at launch time via the signed launch ticket, not via separate deployments.

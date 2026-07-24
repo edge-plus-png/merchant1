@@ -8,6 +8,7 @@ import {
 } from "@/lib/auth/session";
 import { getSessionCookieName } from "@/lib/env";
 import { getPortalStore } from "@/lib/portal-store";
+import { getRequestOrigin, requireRequestSurface } from "@/lib/surface";
 
 const credentialsSchema = z.object({
   email: z.string().email().transform((value) => value.trim().toLowerCase()),
@@ -17,13 +18,17 @@ const credentialsSchema = z.object({
 function loginRedirect(request: Request, error?: "invalid") {
   const publicOrigin = request.headers.get("origin") ?? request.url;
   const destination = new URL(
-    error ? `/login?error=${error}` : "/portal",
+    error ? `/login?error=${error}` : "/dashboard",
     publicOrigin,
   );
   return NextResponse.redirect(destination, { status: 303 });
 }
 
 export async function POST(request: Request) {
+  if (!requireRequestSurface(request, "MERCHANT")) {
+    return new NextResponse("Not Found", { status: 404 });
+  }
+
   if (!isSameOriginRequest(request)) {
     return new NextResponse("Forbidden", { status: 403 });
   }
@@ -36,7 +41,19 @@ export async function POST(request: Request) {
     return loginRedirect(request, "invalid");
   }
 
-  const membership = await getPortalStore().findLoginMembership(parsed.data.email);
+  const store = getPortalStore();
+  const business = await store.findLocalBusiness(getRequestOrigin(request));
+
+  if (!business) {
+    return new NextResponse("Merchant Portal is not configured.", {
+      status: 503,
+    });
+  }
+
+  const membership = await store.findLoginMembership(
+    parsed.data.email,
+    business.id,
+  );
   const passwordMatches = membership
     ? await verifyPassword(parsed.data.password, membership.user.passwordHash)
     : false;

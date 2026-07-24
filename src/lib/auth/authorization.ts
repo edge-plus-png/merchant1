@@ -1,19 +1,13 @@
 import type { PortalRole } from "@/lib/portal-types";
 
-export type PortalArea = "OVERVIEW" | "USERS" | "SETTINGS" | "APPS";
+export type PortalArea = "DASHBOARD";
+export type PortalActorRole = PortalRole | "HQ_SUPPORT";
 
-const managementRoles = new Set<PortalRole>(["OWNER", "ADMIN"]);
-
-export function canAccessArea(role: PortalRole, area: PortalArea) {
-  if (area === "OVERVIEW") {
-    return true;
-  }
-
-  return managementRoles.has(role);
+export function canAccessArea(_role: PortalActorRole, area: PortalArea) {
+  return area === "DASHBOARD";
 }
 
 export function visiblePortalAreas(role: PortalRole): PortalArea[] {
-  return (["OVERVIEW", "USERS", "SETTINGS", "APPS"] as const).filter((area) =>
-    canAccessArea(role, area),
-  );
+  void role;
+  return ["DASHBOARD"];
 }

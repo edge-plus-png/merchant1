@@ -1,25 +1,47 @@
 # GetEdgePortal
 
-Portal v2 foundation built against the frozen architecture in [`docs/`](docs/README.md).
+Sprint 1 implements only the HQ-to-Merchant Portal entry proof. HQ and Merchant
+Portal remain separate products with separate identities, sessions, cookies, and
+databases. The signed handover creates a temporary `SUPPORT_READ_ONLY` HQ-managed
+session and never creates a merchant user or membership for the HQ operator.
 
-This milestone contains only merchant-local Portal concerns: Owner authentication,
-business context, Portal roles, the authenticated shell, Users, Settings, the Apps
-access boundary/placeholder, health, and the initial Prisma migration. Platform
-Registry integration, capability launch tickets, Move, and capability entitlement UI
-are intentionally absent.
+## Sprint 1 routes
 
-## Local setup
+HQ:
 
-1. Use Node 24.x and run `npm install`.
-2. Copy `.env.example` to `.env` and provide a merchant-local PostgreSQL URL plus a
-   strong bootstrap Owner password.
-3. Run `npm run prisma:migrate` and `npm run prisma:seed`.
-4. Start the app with `npm run dev`.
+- `/setup`
+- `/login`
+- `/dashboard`
+- `/merchants`
+- `/merchants/new`
 
-For the deterministic local/e2e store only, set `PORTAL_DEMO_MODE=true` in a
-non-production process. Its test accounts are `owner@example.com` /
-`OwnerPass123!` and `lite@example.com` / `LitePass123!`. Demo mode fails closed
-when `NODE_ENV=production`.
+Merchant Portal:
+
+- `/dashboard` through the signed HQ handover
+
+## Local proof
+
+Use Node 24.x, install dependencies, then start the deterministic demo store:
+
+```sh
+PORTAL_DEMO_MODE=true npm run dev -- --hostname 127.0.0.1 --port 3100
+```
+
+Open `http://hq.localhost:3100/setup`. The first setup creates the Edge HQ and
+master account; there are no seeded login credentials. Merchant slugs are exposed
+locally as `http://{slug}.localhost:3100` so the browser exercises distinct HQ and
+merchant cookie scopes.
+
+For a PostgreSQL-backed environment, copy `.env.example` to `.env`, configure the
+HQ or Merchant Portal surface and signing keys, then run:
+
+```sh
+npm run prisma:migrate
+npm run prisma:seed
+```
+
+The HQ seed intentionally creates no master account. A merchant seed creates only
+the local business record required to receive an HQ handover.
 
 ## Verification
 
@@ -27,18 +49,15 @@ With `DATABASE_URL` configured:
 
 ```sh
 npm run verify
-npm run test:e2e
+CI=1 npm run test:e2e
 ```
 
-The end-to-end suite proves the Owner login/business-context journey, Users,
-Settings, Owner Apps access, Lite Apps denial, unauthenticated route protection,
-and `/api/health`.
+The end-to-end test starts from an empty HQ, creates the master account, logs in,
+creates a `PROVISIONING` directory record, proves it cannot be opened, changes it
+to `READY`, then exchanges the signed one-use ticket and confirms its Portal opens
+with a separate HQ-managed session. It changes the merchant back to `PROVISIONING`
+and proves Open Portal is removed. Unit coverage verifies both audited transitions.
 
-## Deployment roles
-
-- `staging` → `portalapp-staging` (build/test role)
-- `main` → `portalapp-template` (Template release-candidate role)
-
-Both use temporary Vercel-issued URLs until the full foundation gate passes in its
-deployed environments. No `getedgeportal.app` domain should be attached before that
-deliberate verification step.
+Merchant deployment automation is outside Sprint 1. The operator supplies the
+Portal URL created through the manual merchant checklist. No filesystem, Git,
+Vercel, Neon, database or domain operation is performed by the HQ flow.

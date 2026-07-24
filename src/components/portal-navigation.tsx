@@ -7,12 +7,9 @@ import type { PortalArea } from "@/lib/auth/authorization";
 
 const items: Record<
   PortalArea,
-  { href: string; label: string; icon: "overview" | "users" | "settings" | "apps" }
+  { href: string; label: string; icon: "overview" }
 > = {
-  OVERVIEW: { href: "/portal", label: "Overview", icon: "overview" },
-  USERS: { href: "/portal/users", label: "Users", icon: "users" },
-  SETTINGS: { href: "/portal/settings", label: "Settings", icon: "settings" },
-  APPS: { href: "/portal/apps", label: "Apps", icon: "apps" },
+  DASHBOARD: { href: "/dashboard", label: "Dashboard", icon: "overview" },
 };
 
 export function PortalNavigation({ areas }: { areas: PortalArea[] }) {
@@ -23,7 +20,7 @@ export function PortalNavigation({ areas }: { areas: PortalArea[] }) {
       {areas.map((area) => {
         const item = items[area];
         const active =
-          item.href === "/portal"
+          item.href === "/dashboard"
             ? pathname === item.href
             : pathname.startsWith(item.href);
 

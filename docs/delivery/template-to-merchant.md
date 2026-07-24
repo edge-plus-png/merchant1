@@ -11,6 +11,16 @@ Two distinct actions, both manual, both scoped to exactly one merchant at a time
 
 A new merchant never starts from `template-staging`, and never inherits another merchant's data or configuration.
 
+## HQ directory record
+
+HQ does not run any step above. Its New Merchant action stores only the business
+name, slug, Portal URL, and `PROVISIONING` or `READY` status in the HQ directory.
+Use `READY` only after the manual deployment and database checklist has completed
+and the supplied Portal URL is reachable. The HQ list provides the single status
+transition needed to mark that record ready and records the operator and transition
+in an audit event. Returning it to `PROVISIONING` immediately removes Open Portal
+access.
+
 ## Updating an existing merchant
 
 1. Choose the certified Template commit to update this merchant to (not necessarily Template's latest — a merchant can be deliberately held back).

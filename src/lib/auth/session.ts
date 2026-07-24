@@ -2,7 +2,13 @@ import { createHash, randomBytes } from "node:crypto";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { getSessionCookieName, getSessionTtlHours } from "@/lib/env";
+import {
+  getHQSupportSessionCookieName,
+  getHQSupportSessionTtlMinutes,
+  getSessionCookieName,
+  getSessionTtlHours,
+} from "@/lib/env";
+import type { HQAccessTicketPayload } from "@/lib/hq-access/ticket";
 import { getPortalStore } from "@/lib/portal-store";
 import type { PortalStore } from "@/lib/portal-store/types";
 import type { PortalContext } from "@/lib/portal-types";
@@ -60,6 +66,7 @@ export async function resolvePortalContext(
   void _passwordHash;
 
   return {
+    kind: "MERCHANT_USER",
     sessionId: session.id,
     expiresAt: session.expiresAt,
     role: session.membership.role,
@@ -69,9 +76,78 @@ export async function resolvePortalContext(
   };
 }
 
+export async function createHQSupportSession(payload: HQAccessTicketPayload) {
+  const token = randomBytes(32).toString("base64url");
+  const expiresAt = new Date(
+    Date.now() + getHQSupportSessionTtlMinutes() * 60 * 1000,
+  );
+  const result = await getPortalStore().consumeTicketAndCreateSupportSession({
+    tokenHash: hashSessionToken(token),
+    nonce: payload.nonce,
+    businessId: payload.targetBusiness.id,
+    originHqId: payload.originHq.id,
+    originHqName: payload.originHq.name,
+    hqUserId: payload.operator.id,
+    operatorName: payload.operator.name,
+    operatorEmail: payload.operator.email,
+    accessMode: payload.accessMode,
+    ticketIssuedAt: new Date(payload.issuedAt * 1000),
+    ticketExpiresAt: new Date(payload.expiresAt * 1000),
+    sessionExpiresAt: expiresAt,
+    auditIdentifier: payload.auditIdentifier,
+  });
+
+  return { result, token, expiresAt };
+}
+
+export async function resolveHQSupportContext(token: string | undefined) {
+  if (!token) {
+    return null;
+  }
+
+  const tokenHash = hashSessionToken(token);
+  const session = await getPortalStore().findSupportSession(tokenHash);
+
+  if (!session || session.expiresAt.getTime() <= Date.now()) {
+    if (session) {
+      await getPortalStore().deleteSupportSession(tokenHash);
+    }
+    return null;
+  }
+
+  return {
+    kind: "HQ_SUPPORT" as const,
+    sessionId: session.id,
+    expiresAt: session.expiresAt,
+    role: "HQ_SUPPORT" as const,
+    membershipId: null,
+    user: {
+      id: session.operator.userId,
+      email: session.operator.email,
+      name: session.operator.name,
+      status: "ACTIVE" as const,
+    },
+    business: session.business,
+    support: {
+      hqId: session.operator.hqId,
+      hqName: session.operator.hqName,
+      accessMode: session.accessMode,
+      ticketIssuedAt: session.ticketIssuedAt,
+      auditIdentifier: session.auditIdentifier,
+    },
+  };
+}
+
 export const getPortalContext = cache(async () => {
   const cookieStore = await cookies();
-  return resolvePortalContext(cookieStore.get(getSessionCookieName())?.value);
+  const supportContext = await resolveHQSupportContext(
+    cookieStore.get(getHQSupportSessionCookieName())?.value,
+  );
+
+  return (
+    supportContext ??
+    resolvePortalContext(cookieStore.get(getSessionCookieName())?.value)
+  );
 });
 
 export async function requirePortalContext() {
@@ -87,5 +163,11 @@ export async function requirePortalContext() {
 export async function deletePortalSession(token: string | undefined) {
   if (token) {
     await getPortalStore().deleteSession(hashSessionToken(token));
+  }
+}
+
+export async function deleteHQSupportSession(token: string | undefined) {
+  if (token) {
+    await getPortalStore().deleteSupportSession(hashSessionToken(token));
   }
 }

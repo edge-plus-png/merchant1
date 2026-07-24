@@ -4,7 +4,7 @@ This folder is the authoritative source for the rebuilt GetEdgePortal platform (
 
 ## Status
 
-Architecture. No application code exists yet. Read [`platform/portal-architecture.md`](platform/portal-architecture.md) first.
+Architecture documentation. Read [`platform/portal-architecture.md`](platform/portal-architecture.md) first. HQ, Merchant Portal, and Capabilities are separate products with separate identity and session boundaries.
 
 ## Why this exists
 
@@ -18,19 +18,25 @@ The previous architecture accumulated: a per-merchant registration → approval 
 
 Promotion is one-directional and manual: staging → template → merchant. Nothing is promoted automatically at any stage. See [`delivery/staging-to-template.md`](delivery/staging-to-template.md) and [`delivery/template-to-merchant.md`](delivery/template-to-merchant.md).
 
+HQ follows its own staging → production promotion path using separate
+`portalapp-hq-staging` and `portalapp-hq` projects, databases, and signing keys. See
+[`decisions/0010-hq-staging-and-production.md`](decisions/0010-hq-staging-and-production.md).
+
 ## Reading order
 
-1. [`platform/portal-architecture.md`](platform/portal-architecture.md) — what Portal owns, capabilities vs. integrations
-2. [`platform/deployment-and-vercel-model.md`](platform/deployment-and-vercel-model.md) — every Vercel project, branch, and domain and what it's for
-3. [`platform/merchant-deployment-model.md`](platform/merchant-deployment-model.md) — how a merchant is created and updated
-4. [`platform/payment-ownership.md`](platform/payment-ownership.md) — who executes payments, who owns refunds
-5. [`capabilities/capability-contract.md`](capabilities/capability-contract.md) — what every capability must implement
-6. [`capabilities/signed-launch-ticket.md`](capabilities/signed-launch-ticket.md) — the one SSO mechanism, used by all capabilities
-7. [`capabilities/capability-starter.md`](capabilities/capability-starter.md) — the scaffold a new capability starts from
-8. [`integrations/integration-contract.md`](integrations/integration-contract.md) — how integrations differ from capabilities
-9. [`integrations/integration-starter.md`](integrations/integration-starter.md) — the scaffold a new integration starts from
-10. [`delivery/staging-to-template.md`](delivery/staging-to-template.md), [`delivery/template-to-merchant.md`](delivery/template-to-merchant.md), [`delivery/release-checklist.md`](delivery/release-checklist.md) — the promotion process and its proof
-11. [`decisions/`](decisions/) — why the above is shaped this way, and what was rejected
+1. [`platform/portal-architecture.md`](platform/portal-architecture.md) — the three products and their ownership boundaries
+2. [`platform/hq-architecture.md`](platform/hq-architecture.md) — HQ visibility, merchant entry, session, audit, and capability hand-off
+3. [`platform/hq-data-model.md`](platform/hq-data-model.md) — the minimum conceptual records and where they live
+4. [`platform/deployment-and-vercel-model.md`](platform/deployment-and-vercel-model.md) — every Vercel project, branch, and domain and what it's for
+5. [`platform/merchant-deployment-model.md`](platform/merchant-deployment-model.md) — how a merchant is created and updated
+6. [`platform/payment-ownership.md`](platform/payment-ownership.md) — who executes payments, who owns refunds
+7. [`capabilities/capability-contract.md`](capabilities/capability-contract.md) — what every capability must implement
+8. [`capabilities/signed-launch-ticket.md`](capabilities/signed-launch-ticket.md) — the one Merchant Portal-to-capability SSO mechanism
+9. [`capabilities/capability-starter.md`](capabilities/capability-starter.md) — the scaffold a new capability starts from
+10. [`integrations/integration-contract.md`](integrations/integration-contract.md) — how integrations differ from capabilities
+11. [`integrations/integration-starter.md`](integrations/integration-starter.md) — the scaffold a new integration starts from
+12. [`delivery/staging-to-template.md`](delivery/staging-to-template.md), [`delivery/template-to-merchant.md`](delivery/template-to-merchant.md), [`delivery/release-checklist.md`](delivery/release-checklist.md) — the promotion process and its proof
+13. [`decisions/`](decisions/) — why the above is shaped this way, and what was rejected
 
 ## Documentation QA
 

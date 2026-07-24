@@ -5,6 +5,10 @@ import { visiblePortalAreas } from "@/lib/auth/authorization";
 import type { PortalContext } from "@/lib/portal-types";
 
 function formatRole(role: PortalContext["role"]) {
+  if (role === "HQ_SUPPORT") {
+    return "HQ support";
+  }
+
   return role.charAt(0) + role.slice(1).toLowerCase();
 }
 
@@ -18,10 +22,25 @@ export function PortalShell({
   return (
     <div className="portal-shell">
       <aside className="portal-sidebar">
-        <Logo />
-        <PortalNavigation areas={visiblePortalAreas(context.role)} />
+        <Logo destination="/dashboard" />
+        <PortalNavigation
+          areas={
+            context.kind === "HQ_SUPPORT"
+              ? ["DASHBOARD"]
+              : visiblePortalAreas(context.role)
+          }
+        />
       </aside>
       <div className="portal-workspace">
+        {context.kind === "HQ_SUPPORT" ? (
+          <div className="hq-support-banner" role="status">
+            <strong>Viewing as {context.support.hqName}</strong>
+            <span>
+              Temporary HQ-managed access · Audit{" "}
+              <code>{context.support.auditIdentifier}</code>
+            </span>
+          </div>
+        ) : null}
         <header className="portal-header">
           <div className="business-identity">
             <strong>{context.business.name}</strong>
@@ -35,9 +54,16 @@ export function PortalShell({
               <strong>{context.user.name}</strong>
               <span>{formatRole(context.role)}</span>
             </span>
-            <form action="/api/auth/logout" method="post">
+            <form
+              action={
+                context.kind === "HQ_SUPPORT"
+                  ? "/api/support/logout"
+                  : "/api/auth/logout"
+              }
+              method="post"
+            >
               <button className="sign-out-button" type="submit">
-                Sign out
+                {context.kind === "HQ_SUPPORT" ? "End access" : "Sign out"}
               </button>
             </form>
           </div>

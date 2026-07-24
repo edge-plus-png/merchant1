@@ -1,57 +1,42 @@
 import { PrismaClient } from "@prisma/client";
 import { z } from "zod";
-import { hashPassword } from "../src/lib/auth/password";
 
 const prisma = new PrismaClient();
 
-const bootstrapSchema = z.object({
+const merchantBootstrapSchema = z.object({
+  businessId: z.string().min(1).optional(),
   businessName: z.string().min(2),
   businessSlug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
-  ownerName: z.string().min(2),
-  ownerEmail: z.string().email().transform((value) => value.toLowerCase()),
-  ownerPassword: z.string().min(12),
+  portalUrl: z.string().url(),
 });
 
-async function main() {
-  const input = bootstrapSchema.parse({
+async function seedMerchantDirectoryRecord() {
+  const input = merchantBootstrapSchema.parse({
+    businessId: process.env.PORTAL_BOOTSTRAP_BUSINESS_ID,
     businessName: process.env.PORTAL_BOOTSTRAP_BUSINESS_NAME,
     businessSlug: process.env.PORTAL_BOOTSTRAP_BUSINESS_SLUG,
-    ownerName: process.env.PORTAL_BOOTSTRAP_OWNER_NAME,
-    ownerEmail: process.env.PORTAL_BOOTSTRAP_OWNER_EMAIL,
-    ownerPassword: process.env.PORTAL_BOOTSTRAP_OWNER_PASSWORD,
+    portalUrl: process.env.PORTAL_CANONICAL_URL,
   });
 
-  const passwordHash = await hashPassword(input.ownerPassword);
-  const business = await prisma.business.upsert({
+  await prisma.business.upsert({
     where: { slug: input.businessSlug },
-    update: { name: input.businessName },
-    create: { slug: input.businessSlug, name: input.businessName },
-  });
-  const owner = await prisma.portalUser.upsert({
-    where: { email: input.ownerEmail },
-    update: {
-      name: input.ownerName,
-      passwordHash,
-      status: "ACTIVE",
-    },
+    update: { name: input.businessName, portalUrl: input.portalUrl },
     create: {
-      email: input.ownerEmail,
-      name: input.ownerName,
-      passwordHash,
+      id: input.businessId,
+      slug: input.businessSlug,
+      name: input.businessName,
+      portalUrl: input.portalUrl,
     },
   });
+}
 
-  await prisma.businessMembership.upsert({
-    where: {
-      businessId_userId: { businessId: business.id, userId: owner.id },
-    },
-    update: { role: "OWNER", isActive: true },
-    create: {
-      businessId: business.id,
-      userId: owner.id,
-      role: "OWNER",
-    },
-  });
+async function main() {
+  if (process.env.PORTAL_SURFACE === "HQ") {
+    // HQ intentionally starts empty so /setup can create the one master account.
+    return;
+  }
+
+  await seedMerchantDirectoryRecord();
 }
 
 main()

@@ -11,6 +11,8 @@ const membership: MembershipRecord = {
     id: "business_1",
     slug: "correct-business",
     name: "Correct Business",
+    portalUrl: "https://correct-business.example",
+    status: "READY",
     timezone: "Europe/London",
     currency: "GBP",
   },
@@ -32,7 +34,11 @@ function createStore(expiresAt: Date): PortalStore {
       tokenHash === hashSessionToken("valid-token")
         ? { id: "session_1", expiresAt, membership }
         : null,
-    listMemberships: async () => [membership],
+    findLocalBusiness: async () => membership.business,
+    consumeTicketAndCreateSupportSession: async () => "created",
+    findSupportSession: async () => null,
+    deleteSupportSession: async () => undefined,
+    listHQAccessAuditEvents: async () => [],
   };
 }
 

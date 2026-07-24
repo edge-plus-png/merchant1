@@ -2,7 +2,7 @@
 
 ## Decision
 
-First-party applications a Portal user is launched into (Move, Events, Storefront) are **capabilities**: independently deployed, registered globally, entitled per merchant, launched via signed ticket. Connections to third-party systems (Monday.com, Xero, WooCommerce, Shopify) are **integrations**: configured per merchant, running unattended in the background, consuming Portal capabilities rather than being launched into. These are two different lifecycles and are never merged into one model.
+First-party applications entered from Merchant Portal (Move, Events, Storefront) are **capabilities**: independently deployed, registered globally, entitled per merchant, and launched by Merchant Portal via signed ticket. The requesting Merchant Portal principal is normally a merchant user and may be an HQ-managed session when its access mode permits launch; neither identity is provisioned as a capability application user. Connections to third-party systems (Monday.com, Xero, WooCommerce, Shopify) are **integrations**: configured per merchant, running unattended in the background, consuming Portal capabilities rather than being launched into. These are two different lifecycles and are never merged into one model.
 
 ## Why
 
