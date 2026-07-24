@@ -89,7 +89,7 @@ export async function createHQSupportSession(payload: HQAccessTicketPayload) {
     originHqName: payload.originHq.name,
     hqUserId: payload.operator.id,
     operatorName: payload.operator.name,
-    operatorEmail: payload.operator.email,
+    operatorUsername: payload.operator.username,
     accessMode: payload.accessMode,
     ticketIssuedAt: new Date(payload.issuedAt * 1000),
     ticketExpiresAt: new Date(payload.expiresAt * 1000),
@@ -123,7 +123,7 @@ export async function resolveHQSupportContext(token: string | undefined) {
     membershipId: null,
     user: {
       id: session.operator.userId,
-      email: session.operator.email,
+      username: session.operator.username,
       name: session.operator.name,
       status: "ACTIVE" as const,
     },

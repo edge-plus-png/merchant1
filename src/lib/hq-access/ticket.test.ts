@@ -53,7 +53,7 @@ describe("HQ merchant-access tickets", () => {
     ).toMatchObject({
       targetBusiness: { id: business.id },
       originHq: { id: "hq-edge" },
-      operator: { id: "hq-user-edge" },
+      operator: { id: "hq-user-edge", username: "edge.hq@example.com" },
       accessMode: "SUPPORT_READ_ONLY",
     });
     expect(

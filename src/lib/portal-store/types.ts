@@ -14,7 +14,7 @@ export type CreateHQSupportSessionInput = {
   originHqName: string;
   hqUserId: string;
   operatorName: string;
-  operatorEmail: string;
+  operatorUsername: string;
   accessMode: HQAccessMode;
   ticketIssuedAt: Date;
   ticketExpiresAt: Date;

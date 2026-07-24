@@ -187,41 +187,43 @@ model HQSession {
 }
 
 model HQSupportSession {
-  id              String       @id @default(cuid())
-  tokenHash       String       @unique
-  businessId      String
-  originHqId      String
-  originHqName    String
-  hqUserId        String
-  operatorName    String
-  operatorEmail   String
-  accessMode      HQAccessMode
-  ticketIssuedAt  DateTime
-  expiresAt       DateTime
-  auditIdentifier String
-  createdAt       DateTime     @default(now())
-  lastSeenAt      DateTime     @default(now())
-  business        Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  id               String       @id @default(cuid())
+  tokenHash        String       @unique
+  businessId       String
+  originHqId       String
+  originHqName     String
+  hqUserId         String
+  operatorName     String
+  operatorEmail    String?
+  operatorUsername String?
+  accessMode       HQAccessMode
+  ticketIssuedAt   DateTime
+  expiresAt        DateTime
+  auditIdentifier  String
+  createdAt        DateTime     @default(now())
+  lastSeenAt       DateTime     @default(now())
+  business         Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@index([businessId, expiresAt])
   @@index([auditIdentifier])
 }
 
 model HQAccessAuditEvent {
-  id              String              @id @default(cuid())
-  auditIdentifier String
-  action          HQAccessAuditAction
-  businessId      String
-  originHqId      String
-  originHqName    String
-  hqUserId        String
-  operatorName    String
-  operatorEmail   String
-  accessMode      HQAccessMode
-  ticketIssuedAt  DateTime
-  expiresAt       DateTime
-  createdAt       DateTime            @default(now())
-  business        Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  id               String              @id @default(cuid())
+  auditIdentifier  String
+  action           HQAccessAuditAction
+  businessId       String
+  originHqId       String
+  originHqName     String
+  hqUserId         String
+  operatorName     String
+  operatorEmail    String?
+  operatorUsername String?
+  accessMode       HQAccessMode
+  ticketIssuedAt   DateTime
+  expiresAt        DateTime
+  createdAt        DateTime            @default(now())
+  business         Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@index([auditIdentifier, createdAt])
   @@index([businessId, createdAt])

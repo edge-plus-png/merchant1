@@ -132,7 +132,7 @@ export const demoPortalStore: PortalStore = {
         hqName: input.originHqName,
         userId: input.hqUserId,
         name: input.operatorName,
-        email: input.operatorEmail,
+        username: input.operatorUsername,
       },
     });
     state.hqAccessAudits.push({
@@ -145,7 +145,7 @@ export const demoPortalStore: PortalStore = {
       originHqName: input.originHqName,
       hqUserId: input.hqUserId,
       operatorName: input.operatorName,
-      operatorEmail: input.operatorEmail,
+      operatorUsername: input.operatorUsername,
       accessMode: input.accessMode,
       ticketIssuedAt: input.ticketIssuedAt,
       expiresAt: input.sessionExpiresAt,

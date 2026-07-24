@@ -100,7 +100,7 @@ export type HQSupportSessionRecord = {
     hqName: string;
     userId: string;
     name: string;
-    email: string;
+    username: string;
   };
 };
 
@@ -112,7 +112,7 @@ export type HQSupportPortalContext = {
   membershipId: null;
   user: {
     id: string;
-    email: string;
+    username: string;
     name: string;
     status: "ACTIVE";
   };
@@ -138,7 +138,8 @@ export type HQAccessAuditRecord = {
   originHqName: string;
   hqUserId: string;
   operatorName: string;
-  operatorEmail: string;
+  operatorEmail?: string | null;
+  operatorUsername?: string | null;
   accessMode: HQAccessMode;
   ticketIssuedAt: Date;
   expiresAt: Date;
