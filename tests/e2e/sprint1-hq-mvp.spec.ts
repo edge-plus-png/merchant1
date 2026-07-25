@@ -283,7 +283,8 @@ test("Sprint 1: Edge changes merchant readiness and opens its Portal", async ({
     await page.getByRole("link", { name: "My Apps", exact: true }).click();
     await expect(page).toHaveURL(`${merchantOrigin}/apps`);
     await expect(page.getByRole("heading", { name: "My Apps" }).first()).toBeVisible();
-    await expect(page.getByText("This page is a placeholder.")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Move" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Install Move" })).toBeVisible();
     await page.screenshot({
       path: `${evidenceDirectory}/08-merchant-apps.png`,
       fullPage: true,
@@ -358,7 +359,8 @@ test("Sprint 1: Edge changes merchant readiness and opens its Portal", async ({
     await page.getByRole("button", { name: "Open navigation" }).click();
     await page.getByRole("link", { name: "My Apps", exact: true }).click();
     await expect(page.getByRole("heading", { name: "My Apps" }).first()).toBeVisible();
-    await expect(page.getByText("This page is a placeholder.")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Move" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Install Move" })).toBeVisible();
     await page.screenshot({
       path: `${evidenceDirectory}/13-admin-apps.png`,
       fullPage: true,

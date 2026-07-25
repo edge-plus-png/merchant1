@@ -560,6 +560,16 @@ export const prismaPortalStore: PortalStore = {
     });
   },
 
+  async listApplicationAccessSlugs(businessId, membershipId) {
+    const access = await getDb().portalCapabilityAccess.findMany({
+      where: { businessId, membershipId },
+      orderBy: { capabilitySlug: "asc" },
+      select: { capabilitySlug: true },
+    });
+
+    return access.map((item) => item.capabilitySlug);
+  },
+
   async installMove(businessId, trustedOrigin) {
     return getDb().$transaction(
       async (database) => {

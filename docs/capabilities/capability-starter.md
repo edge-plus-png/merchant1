@@ -8,7 +8,7 @@ The starter gives a new capability exactly this and nothing more: the launch con
 
 - **`.well-known/getedge-capability.json`** — the capability's published identity: slug, name, contract version, launch URL, health URL, and a reference for discovering the issuing Merchant Portal deployment's current public key (each Merchant Portal deployment holds and publishes its own signing key directly — see [`signed-launch-ticket.md`](signed-launch-ticket.md)). See [`capability-contract.md`](capability-contract.md).
 - **`api/health`** — a cheap, unauthenticated endpoint Portal can poll to confirm the capability is reachable. Must not depend on the capability's own database being reachable in a way that makes health checks fail during routine maintenance, unless that's the intended signal.
-- **`api/portal/launch`** — the endpoint that receives a signed launch ticket, verifies it per [`signed-launch-ticket.md`](signed-launch-ticket.md), and on success creates the capability's own session and redirects into the capability's authenticated area.
+- **`/api/portal-launch`** — the endpoint that receives a signed launch ticket, verifies it per [`signed-launch-ticket.md`](signed-launch-ticket.md), and on success hands control to the independently deployed application.
 - **A logout path** — ends the capability's own session. This is the capability's own logout, not a Portal one: it does not end any Merchant Portal or HQ session, and Merchant Portal has no visibility into whether it was called (see [`../decisions/0004-no-shared-cookies.md`](../decisions/0004-no-shared-cookies.md)).
 
 ## Required behavior

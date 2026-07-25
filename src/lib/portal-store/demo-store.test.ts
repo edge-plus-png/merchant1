@@ -248,4 +248,21 @@ describe("merchant milestone store", () => {
     expect(Object.keys(await getDemoState())).not.toContain("moveSessions");
     expect(Object.keys(await getDemoState())).not.toContain("moveConfigurations");
   });
+
+  it("keeps application access scoped by membership and application slug", async () => {
+    const { business, owner } = await createMerchantWithOwner();
+    const state = await getDemoState();
+    state.capabilityAccess.push({
+      businessId: business.id,
+      membershipId: owner.id,
+      capabilitySlug: "move",
+    });
+
+    await expect(
+      demoPortalStore.listApplicationAccessSlugs(business.id, owner.id),
+    ).resolves.toEqual(["move"]);
+    await expect(
+      demoPortalStore.listApplicationAccessSlugs(business.id, "another-user"),
+    ).resolves.toEqual([]);
+  });
 });

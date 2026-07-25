@@ -23,8 +23,18 @@ export async function POST(request: Request) {
   }
 
   const context = await getPortalContext();
-  if (!context || context.kind !== "MERCHANT_USER") {
+  if (!context || context.kind === "HQ_SUPPORT") {
     return new NextResponse("Forbidden", { status: 403 });
+  }
+
+  if (context.kind === "MERCHANT_USER") {
+    const accessSlugs = await getPortalStore().listApplicationAccessSlugs(
+      context.business.id,
+      context.membershipId,
+    );
+    if (!accessSlugs.includes("move")) {
+      return new NextResponse("Forbidden", { status: 403 });
+    }
   }
 
   const application = (await getPortalStore().listApplications(context.business.id))

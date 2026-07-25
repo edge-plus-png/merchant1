@@ -140,6 +140,10 @@ export interface PortalStore {
     isActive: boolean;
   }): Promise<MembershipMutationResult>;
   listApplications(businessId: string): Promise<MerchantApplicationRecord[]>;
+  listApplicationAccessSlugs(
+    businessId: string,
+    membershipId: string,
+  ): Promise<string[]>;
   installMove(
     businessId: string,
     trustedOrigin: string,

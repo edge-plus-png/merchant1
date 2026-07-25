@@ -13,7 +13,7 @@ Template being promoted (see [`../delivery/staging-to-template.md`](../delivery/
 ## What this rules out
 
 - No merchant is ever pointed directly at `template-staging`.
-- No merchant deployment shares its own business data (users, sessions, business records) with another merchant's deployment or database. Capability entitlements and the Platform Organisation are not shared cross-merchant either — each deployment holds its own copy directly; see [`portal-architecture.md`](portal-architecture.md), "Where platform data lives."
+- No merchant deployment shares its business data, application installation rows, user access rows, users, or sessions with another merchant deployment. See [`portal-architecture.md`](portal-architecture.md), "Where application entitlement lives."
 - No "fleet update" mechanism pushes a Template change to all merchants at once. If that capability is wanted later, it is a deliberate, visible, one-at-a-time rollout tool built on top of this model — not a default behavior of it.
 
 ## Proof this works (see also `../delivery/release-checklist.md`)

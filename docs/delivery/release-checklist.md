@@ -6,7 +6,7 @@ This is the concrete proof gate referenced by [`staging-to-template.md`](staging
 
 1. A Portal Owner logs into `template-staging.getedgeportal.app`.
 2. The correct business/merchant record loads for that Owner.
-3. The Apps screen shows Move, because this merchant holds a `MerchantCapability` grant for it.
+3. The Apps screen shows Move from this merchant's `MerchantApplication` row.
 4. A Portal user who is neither this merchant's Owner nor otherwise granted `PortalCapabilityAccess` for Move (see [`../platform/portal-architecture.md`](../platform/portal-architecture.md), "Who can do what") cannot see or launch Move, even though their merchant is entitled to it.
 5. The Owner clicks Move. A signed launch ticket is issued and accepted by Move.
 6. Move receives the correct `merchantId` and reflects the correct business — not a default, not the wrong merchant.
@@ -18,10 +18,10 @@ This is the concrete proof gate referenced by [`staging-to-template.md`](staging
 
 ## Merchant deployment proof
 
-Neither of the following two checks uses a real merchant — Edge's portal included — and neither involves pointing any merchant at `template-staging`. Both run against two dedicated, non-merchant verification projects — see [`staging-to-template.md`](staging-to-template.md) ("Verification deployments are not merchants") for what they are and why they exist. Each project holds its own `CapabilityDefinition`/`MerchantCapability` rows directly, in its own database, the same way every merchant deployment does (see [`../platform/portal-architecture.md`](../platform/portal-architecture.md), "Where platform data lives") — there is no shared external store these checks depend on.
+Neither of the following two checks uses a real merchant — Edge's portal included — and neither involves pointing any merchant at `template-staging`. Both run against two dedicated, non-merchant verification projects — see [`staging-to-template.md`](staging-to-template.md) ("Verification deployments are not merchants") for what they are and why they exist. Each project holds its own `MerchantApplication` and `PortalCapabilityAccess` rows directly, in its own database, the same way every merchant deployment does.
 
-12. **`portalapp-verify-create`** is torn down and recreated fresh from the release candidate commit, using a freshly generated merchant identity each run, and reaching a working, empty (no capabilities entitled) state. Because the whole project (database included) is fresh every run, it always starts with zero `MerchantCapability` rows. This exercises the exact mechanism a real merchant creation will use, without being one.
-13. **`portalapp-verify-update`** — a persistent verification project, never deleted between runs, with one fixed merchant identity and its own stable `MerchantCapability` grants in its own database — is updated to the release candidate commit and continues to work with all of its existing data and capability grants intact. This exercises the exact mechanism a real merchant update will use, without being one, and without requiring the candidate commit to already be certified.
+12. **`portalapp-verify-create`** is torn down and recreated fresh from the release candidate commit, using a freshly generated merchant identity each run, and reaching a working state with known applications not installed. This exercises the exact mechanism a real merchant creation will use, without being one.
+13. **`portalapp-verify-update`** — a persistent verification project, never deleted between runs, with one fixed merchant identity and stable application/access rows in its own database — is updated to the release candidate commit and continues to work with all existing data intact. This exercises the exact mechanism a real merchant update will use, without being one, and without requiring the candidate commit to already be certified.
 
 ## Passing bar
 

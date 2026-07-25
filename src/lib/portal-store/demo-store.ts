@@ -24,6 +24,11 @@ export type DemoState = {
     }
   >;
   applications: MerchantApplicationRecord[];
+  capabilityAccess: Array<{
+    businessId: string;
+    membershipId: string;
+    capabilitySlug: string;
+  }>;
   sessions: Map<string, PortalSessionRecord>;
   hqMemberships: HQMembershipRecord[];
   hqAssignments: Array<{
@@ -57,6 +62,7 @@ async function createDemoState(): Promise<DemoState> {
     memberships: [],
     invitations: [],
     applications: [],
+    capabilityAccess: [],
     sessions: new Map(),
     hqMemberships: [],
     hqAssignments: [],
@@ -559,6 +565,18 @@ export const demoPortalStore: PortalStore = {
     return state.applications
       .filter((application) => application.businessId === businessId)
       .sort((left, right) => left.createdAt.getTime() - right.createdAt.getTime());
+  },
+
+  async listApplicationAccessSlugs(businessId, membershipId) {
+    const state = await getDemoState();
+    return state.capabilityAccess
+      .filter(
+        (access) =>
+          access.businessId === businessId &&
+          access.membershipId === membershipId,
+      )
+      .map((access) => access.capabilitySlug)
+      .sort();
   },
 
   async installMove(businessId, trustedOrigin) {

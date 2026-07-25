@@ -13,11 +13,11 @@ Every project, branch, and domain below has exactly one job. Nothing is shared a
 
 One Vercel project, one database, one domain, per merchant. For example:
 
-- `edge.getedgeportal.app` — Edge's own portal (Edge is Platform Administrator here, using Portal exactly as any merchant would, to see what a merchant sees)
+- `edge.getedgeportal.app` — Edge's own portal, using Portal exactly as any merchant would
 - `littleadventureland.getedgeportal.app`
 - `lyonandturnbull.getedgeportal.app`
 
-Merchants do not share a database, a Vercel project, or a deployment with each other or with Template. Each merchant's own Merchant Portal deployment holds its own `CapabilityDefinition`, `MerchantCapability`, `PortalCapabilityAccess`, and launch-ticket signing key directly — see [`portal-architecture.md`](portal-architecture.md) ("Where platform data lives") for why this doesn't need a separate shared data store today. See [`merchant-deployment-model.md`](merchant-deployment-model.md).
+Merchants do not share a database, a Vercel project, or a deployment with each other or with Template. Each merchant's own Merchant Portal deployment holds its own `MerchantApplication`, `PortalCapabilityAccess`, and launch-ticket signing key directly. See [`portal-architecture.md`](portal-architecture.md) and [`merchant-deployment-model.md`](merchant-deployment-model.md).
 
 ## HQ projects
 
@@ -51,7 +51,7 @@ Each capability domain is genuinely its own — a capability is never reached th
 
 ## Verification projects
 
-Two Vercel projects exist solely to prove the merchant-creation and merchant-update mechanisms as part of the promotion gate. Neither is a merchant, neither has a real domain, and neither is ever used by a real Platform Administrator or merchant user — see [`../delivery/staging-to-template.md`](../delivery/staging-to-template.md) ("Verification deployments are not merchants") and [`merchant-deployment-model.md`](merchant-deployment-model.md).
+Two Vercel projects exist solely to prove the merchant-creation and merchant-update mechanisms as part of the promotion gate. Neither is a merchant, neither has a real domain, and neither is ever used by a real Edge or merchant user — see [`../delivery/staging-to-template.md`](../delivery/staging-to-template.md) ("Verification deployments are not merchants") and [`merchant-deployment-model.md`](merchant-deployment-model.md).
 
 | Vercel project | Lifecycle | Purpose |
 |---|---|---|

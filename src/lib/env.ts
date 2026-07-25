@@ -5,6 +5,11 @@ const portalSurfaceSchema = z.enum(["HQ", "MERCHANT"]);
 
 export type PortalSurface = z.infer<typeof portalSurfaceSchema>;
 
+export const moveApplicationOrigins = {
+  staging: "https://move-staging.getedgeportal.app",
+  production: "https://move.getedgeportal.app",
+} as const;
+
 export function getSessionCookieName() {
   return z
     .string()
@@ -82,7 +87,26 @@ export function getMoveApplicationOrigin() {
   const configured = process.env.MOVE_APPLICATION_ORIGIN ??
     (isDemoMode() ? "https://move.example.test" : undefined);
 
-  return parseMoveApplicationOrigin(z.string().url().parse(configured));
+  const origin = parseMoveApplicationOrigin(z.string().url().parse(configured));
+
+  if (
+    process.env.NODE_ENV === "production" &&
+    !Object.values(moveApplicationOrigins).includes(
+      origin as (typeof moveApplicationOrigins)[keyof typeof moveApplicationOrigins],
+    )
+  ) {
+    throw new Error("MOVE_APPLICATION_ORIGIN is not a trusted Move origin.");
+  }
+
+  return origin;
+}
+
+export function getMoveApplicationEnvironment(origin: string) {
+  const normalized = parseMoveApplicationOrigin(origin);
+  if (normalized === moveApplicationOrigins.staging) return "staging" as const;
+  if (normalized === moveApplicationOrigins.production) return "production" as const;
+  if (process.env.NODE_ENV !== "production") return "staging" as const;
+  throw new Error("Move environment cannot be determined from its origin.");
 }
 
 export function parseMoveApplicationOrigin(value: string) {

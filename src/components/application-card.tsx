@@ -8,10 +8,12 @@ export function ApplicationCard({
   application,
   canInstall,
   canOpen,
+  openUnavailableReason,
 }: {
   application: MerchantApplicationRecord;
   canInstall: boolean;
   canOpen: boolean;
+  openUnavailableReason: string;
 }) {
   const installed = application.status === "INSTALLED";
 
@@ -36,13 +38,13 @@ export function ApplicationCard({
             {installed ? "Installed" : "Not installed"}
           </span>
           {installed && application.launchUrl && canOpen ? (
-            <form action="/api/portal/apps/move/open" method="post">
+            <form action={`/api/portal/apps/${application.slug}/open`} method="post">
               <button className="merchant-primary-button" type="submit">
                 Open {application.name}
               </button>
             </form>
           ) : !installed && canInstall ? (
-            <form action="/api/portal/apps/move/install" method="post">
+            <form action={`/api/portal/apps/${application.slug}/install`} method="post">
               <button className="merchant-primary-button" type="submit">
                 Install {application.name}
               </button>
@@ -53,7 +55,7 @@ export function ApplicationCard({
             </p>
           ) : (
             <p className="application-action-note">
-              Open is unavailable during read-only access.
+              {openUnavailableReason}
             </p>
           )}
         </div>

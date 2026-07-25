@@ -13,6 +13,7 @@ const testPrivateKey = [
 
 const mocks = vi.hoisted(() => ({
   context: vi.fn(),
+  listApplicationAccessSlugs: vi.fn(),
   listApplications: vi.fn(),
   sameOrigin: vi.fn(),
 }));
@@ -34,7 +35,10 @@ vi.mock("@/lib/env", async (importOriginal) => {
   };
 });
 vi.mock("@/lib/portal-store", () => ({
-  getPortalStore: () => ({ listApplications: mocks.listApplications }),
+  getPortalStore: () => ({
+    listApplicationAccessSlugs: mocks.listApplicationAccessSlugs,
+    listApplications: mocks.listApplications,
+  }),
 }));
 vi.mock("@/lib/surface", () => ({
   requireRequestSurface: () => true,
@@ -106,6 +110,7 @@ describe("Portal capability handover", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.context.mockResolvedValue(context);
+    mocks.listApplicationAccessSlugs.mockResolvedValue(["move"]);
     mocks.listApplications.mockResolvedValue([installedApplication]);
     mocks.sameOrigin.mockReturnValue(true);
   });
@@ -161,6 +166,15 @@ describe("Portal capability handover", () => {
     expect(body).not.toContain("?ticket=");
     expect(body).not.toContain("#ticket=");
     expect(new URL("https://capability.example/api/portal-launch").search).toBe("");
+  });
+
+  it("denies a merchant user without per-application access", async () => {
+    mocks.listApplicationAccessSlugs.mockResolvedValue([]);
+
+    const response = await POST(openRequest());
+
+    expect(response.status).toBe(403);
+    expect(mocks.listApplications).not.toHaveBeenCalled();
   });
 
   it("rejects cross-origin Open requests before issuing a ticket", async () => {

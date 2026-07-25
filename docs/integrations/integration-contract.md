@@ -22,8 +22,8 @@ Regardless of scope, an integration is never one of the platform's launched appl
 2. **Configure** — merchant sets resource mappings (which Monday.com board, which WooCommerce store, which Xero organisation) and any integration-specific settings.
 3. **Test** — a dry run or sandbox check confirms the configuration is valid before it's allowed to run live.
 4. **Enable** — the integration begins reacting to real events/webhooks for that merchant.
-5. **Monitor** — operational status (last successful sync, last error, connection health) is visible to the merchant and to Platform Administrators.
-6. **Disconnect** — merchant or Platform Administrator revokes the connection; credentials are invalidated, not merely hidden.
+5. **Monitor** — operational status (last successful sync, last error, connection health) is visible to the merchant and authorized Edge support.
+6. **Disconnect** — the merchant or authorized Edge support revokes the connection; credentials are invalidated, not merely hidden.
 
 ## What an integration must provide
 

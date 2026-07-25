@@ -1,6 +1,7 @@
 import { randomUUID, sign, verify } from "node:crypto";
 import { z } from "zod";
 import {
+  getMoveApplicationEnvironment,
   getMoveLaunchKeyId,
   getMoveLaunchPrivateKey,
   getMoveLaunchTicketTtlSeconds,
@@ -8,7 +9,7 @@ import {
 } from "@/lib/env";
 import type {
   MerchantApplicationRecord,
-  MerchantPortalContext,
+  PortalContext,
 } from "@/lib/portal-types";
 
 const moveLaunchHeaderSchema = z.object({
@@ -20,21 +21,15 @@ const moveLaunchHeaderSchema = z.object({
 const moveLaunchPayloadSchema = z.object({
   version: z.literal(1),
   issuer: z.literal("getedge-merchant-portal"),
-  audience: z.literal("getedge-move"),
-  subject: z.string().min(1),
+  audience: z.literal("move"),
   nonce: z.string().uuid(),
   portalOrigin: z.string().url(),
   moveOrigin: z.string().url(),
+  environment: z.enum(["staging", "production"]),
+  initiatedBy: z.string().min(1),
   merchant: z.object({
     id: z.string().min(1),
     name: z.string().min(1),
-  }),
-  user: z.object({
-    id: z.string().min(1),
-    membershipId: z.string().min(1),
-    name: z.string().min(1),
-    email: z.string().email(),
-    role: z.enum(["OWNER", "ADMIN", "MANAGER", "USER"]),
   }),
   entitlement: z.object({
     applicationId: z.string().min(1),
@@ -58,7 +53,7 @@ function decodeJson(value: string) {
 }
 
 export function createMoveLaunchTicket(
-  context: MerchantPortalContext,
+  context: PortalContext,
   application: MerchantApplicationRecord,
   portalOrigin: string,
   now = new Date(),
@@ -75,6 +70,10 @@ export function createMoveLaunchTicket(
   const normalizedPortalOrigin = new URL(portalOrigin).origin;
   const moveOrigin = parseMoveApplicationOrigin(application.launchUrl);
 
+  if (context.kind === "HQ_SUPPORT") {
+    throw new Error("Read-only HQ access cannot launch Move.");
+  }
+
   if (normalizedPortalOrigin === moveOrigin) {
     throw new Error("Move must be hosted outside Merchant Portal.");
   }
@@ -83,21 +82,18 @@ export function createMoveLaunchTicket(
   const payload: MoveLaunchTicketPayload = {
     version: 1,
     issuer: "getedge-merchant-portal",
-    audience: "getedge-move",
-    subject: context.user.id,
+    audience: "move",
     nonce: randomUUID(),
     portalOrigin: normalizedPortalOrigin,
     moveOrigin,
+    environment: getMoveApplicationEnvironment(moveOrigin),
+    initiatedBy:
+      context.kind === "MERCHANT_USER"
+        ? `merchant-user:${context.user.id}`
+        : "edge-full-access",
     merchant: {
       id: context.business.id,
       name: context.business.name,
-    },
-    user: {
-      id: context.user.id,
-      membershipId: context.membershipId,
-      name: context.user.name,
-      email: context.user.email,
-      role: context.role,
     },
     entitlement: {
       applicationId: application.id,

@@ -170,18 +170,17 @@ model PortalSession {
 }
 
 model PortalCapabilityAccess {
-  id                    String             @id @default(cuid())
-  businessId            String
-  userId                String
-  membershipId          String
-  registryCapabilityRef String
-  capabilitySlug        String
-  createdAt             DateTime           @default(now())
-  business              Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  user                  PortalUser         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  membership            BusinessMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  id             String             @id @default(cuid())
+  businessId     String
+  userId         String
+  membershipId   String
+  capabilitySlug String
+  createdAt      DateTime           @default(now())
+  business       Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user           PortalUser         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  membership     BusinessMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
 
-  @@unique([membershipId, registryCapabilityRef])
+  @@unique([membershipId, capabilitySlug])
   @@index([businessId, capabilitySlug])
   @@index([userId])
 }

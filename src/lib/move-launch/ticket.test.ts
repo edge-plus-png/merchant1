@@ -7,6 +7,7 @@ import {
 import type {
   MerchantApplicationRecord,
   MerchantPortalContext,
+  PortalContext,
 } from "@/lib/portal-types";
 
 const demoPublicKey = [
@@ -115,14 +116,55 @@ describe("Move launch ticket", () => {
     );
 
     expect(payload).toMatchObject({
-      audience: "getedge-move",
+      audience: "move",
+      environment: "staging",
+      initiatedBy: "merchant-user:user_1",
       portalOrigin: "https://summit.getedgeportal.app",
       moveOrigin: "https://move.example.test",
       merchant: { id: "business_1", name: "Summit Retail" },
-      user: { id: "user_1", membershipId: "membership_1", role: "ADMIN" },
       entitlement: { applicationId: "application_move_1", slug: "move" },
     });
     expect(payload!.expiresAt - payload!.issuedAt).toBe(45);
+  });
+
+  it("launches from Edge full access without sending an HQ operator identity", () => {
+    const edgeContext: PortalContext = {
+      kind: "EDGE",
+      sessionId: "edge-session-1",
+      expiresAt: context.expiresAt,
+      role: "EDGE",
+      membershipId: null,
+      user: {
+        id: "hq-user-1",
+        username: "edge.operator",
+        name: "Edge Operator",
+        status: "ACTIVE",
+      },
+      business: context.business,
+      support: {
+        hqId: "edge-hq",
+        hqName: "Edge HQ",
+        accessMode: "EDGE_FULL_ACCESS",
+        ticketIssuedAt: now,
+        auditIdentifier: "hqa-edge-1",
+      },
+    };
+    const launch = createMoveLaunchTicket(
+      edgeContext,
+      application,
+      "https://summit.getedgeportal.app",
+      now,
+    );
+    const payload = verifyMoveLaunchTicketSignature(
+      launch.token,
+      demoPublicKey,
+      now,
+    );
+
+    expect(payload).toMatchObject({ initiatedBy: "edge-full-access" });
+    expect(JSON.stringify(payload)).not.toContain("edge.operator");
+    expect(JSON.stringify(payload)).not.toContain("hq-user-1");
+    expect(JSON.stringify(payload)).not.toContain("hqa-edge-1");
   });
 
   it("issues a unique nonce for every launch and rejects tampering", () => {
