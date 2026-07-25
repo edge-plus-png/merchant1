@@ -1,27 +1,8 @@
-# dependencies
-/node_modules
-
-# Next.js
-/.next
-/out
-
-# tests and coverage
-/coverage
-/playwright-report
-/test-results
-
-# local environment
+node_modules/
+dist/
+.vercel/
 .env
-.env.local
-.env.*.local
-
-# Vercel local link
-.vercel
-
-# generated Prisma client artifacts
-/src/generated
-
-# misc
+.env.*
+!.env.example
 .DS_Store
-*.log
-*.tsbuildinfo
+edge+ New Merchant Checklist.pdf
