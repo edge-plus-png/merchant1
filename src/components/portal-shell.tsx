@@ -20,15 +20,6 @@ export function PortalShell({
   return (
     <div className="portal-shell">
       <div className="portal-workspace">
-        {context.kind === "HQ_SUPPORT" ? (
-          <div className="hq-support-banner" role="status">
-            <strong>Viewing as {context.support.hqName}</strong>
-            <span>
-              Temporary HQ-managed access · Audit{" "}
-              <code>{context.support.auditIdentifier}</code>
-            </span>
-          </div>
-        ) : null}
         <PortalNavigation
           businessName={context.business.name}
           environment={context.business.status === "READY" ? "Live" : "Staging"}
