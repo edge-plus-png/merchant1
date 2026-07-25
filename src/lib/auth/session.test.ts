@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { hashSessionToken, resolvePortalContext } from "@/lib/auth/session";
+import {
+  hashSessionToken,
+  resolveHQSupportContext,
+  resolvePortalContext,
+} from "@/lib/auth/session";
 import type { PortalStore } from "@/lib/portal-store/types";
 import type { MembershipRecord } from "@/lib/portal-types";
 
@@ -92,5 +96,36 @@ describe("Portal business context", () => {
       createStore(new Date(Date.now() - 1)),
     );
     expect(context).toBeNull();
+  });
+
+  it("resolves full Edge authority without creating a merchant membership", async () => {
+    const store = createStore(new Date(Date.now() + 60_000));
+    store.findSupportSession = async (tokenHash) =>
+      tokenHash === hashSessionToken("edge-token")
+        ? {
+            id: "edge-session",
+            expiresAt: new Date(Date.now() + 60_000),
+            ticketIssuedAt: new Date(),
+            auditIdentifier: "hqa_edge_access",
+            accessMode: "EDGE_FULL_ACCESS",
+            business: membership.business,
+            operator: {
+              hqId: "edge-hq",
+              hqName: "Edge HQ",
+              userId: "edge-user",
+              name: "Edge Operator",
+              username: "edge.operator",
+            },
+          }
+        : null;
+
+    const context = await resolveHQSupportContext("edge-token", store);
+
+    expect(context).toMatchObject({
+      kind: "EDGE",
+      role: "EDGE",
+      membershipId: null,
+      support: { accessMode: "EDGE_FULL_ACCESS" },
+    });
   });
 });

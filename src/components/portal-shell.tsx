@@ -7,6 +7,10 @@ function formatRole(role: PortalContext["role"]) {
     return "HQ support";
   }
 
+  if (role === "EDGE") {
+    return "Admin";
+  }
+
   return role.charAt(0) + role.slice(1).toLowerCase();
 }
 
@@ -24,7 +28,7 @@ export function PortalShell({
           businessName={context.business.name}
           environment={context.business.status === "READY" ? "Live" : "Staging"}
           logoutAction={
-            context.kind === "HQ_SUPPORT"
+            context.kind === "HQ_SUPPORT" || context.kind === "EDGE"
               ? "/api/support/logout"
               : "/api/auth/logout"
           }

@@ -1,0 +1,4 @@
+ALTER TYPE "HQAccessMode" ADD VALUE IF NOT EXISTS 'EDGE_FULL_ACCESS';
+
+ALTER TABLE "PortalUserInvitation"
+  ALTER COLUMN "invitedByMembershipId" DROP NOT NULL;

@@ -1,7 +1,7 @@
 import type { PortalRole } from "@/lib/portal-types";
 
 export type PortalArea = "BUSINESS" | "USERS" | "APPS";
-export type PortalActorRole = PortalRole | "HQ_SUPPORT";
+export type PortalActorRole = PortalRole | "HQ_SUPPORT" | "EDGE";
 
 const portalAreas: PortalArea[] = ["BUSINESS", "USERS", "APPS"];
 
@@ -15,13 +15,13 @@ export function visiblePortalAreas(role: PortalRole): PortalArea[] {
 }
 
 export function canManageBusiness(role: PortalActorRole) {
-  return role === "OWNER" || role === "ADMIN";
+  return role === "OWNER" || role === "ADMIN" || role === "EDGE";
 }
 
 export function canManageUsers(role: PortalActorRole) {
-  return role === "OWNER" || role === "ADMIN";
+  return role === "OWNER" || role === "ADMIN" || role === "EDGE";
 }
 
 export function canInstallMove(role: PortalActorRole) {
-  return role === "OWNER" || role === "ADMIN";
+  return role === "OWNER" || role === "ADMIN" || role === "EDGE";
 }

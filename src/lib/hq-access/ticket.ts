@@ -36,7 +36,7 @@ const ticketPayloadSchema = z.object({
     name: z.string().min(1),
     username: z.string().min(3).max(64),
   }),
-  accessMode: z.literal("SUPPORT_READ_ONLY"),
+  accessMode: z.enum(["SUPPORT_READ_ONLY", "EDGE_FULL_ACCESS"]),
   issuedAt: z.number().int().positive(),
   expiresAt: z.number().int().positive(),
 });
@@ -63,7 +63,8 @@ export function createHQAccessTicket(
   const issuedAt = Math.floor(now.getTime() / 1000);
   const expiresAt = issuedAt + getHQAccessTicketTtlSeconds();
   const auditIdentifier = `hqa_${randomUUID()}`;
-  const accessMode: HQAccessMode = "SUPPORT_READ_ONLY";
+  const accessMode: HQAccessMode =
+    context.hq.type === "EDGE" ? "EDGE_FULL_ACCESS" : "SUPPORT_READ_ONLY";
   const payload: HQAccessTicketPayload = {
     version: 1,
     issuer: "getedge-hq",

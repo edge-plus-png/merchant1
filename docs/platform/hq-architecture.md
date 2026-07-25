@@ -32,15 +32,23 @@ Only a `READY` entry with a Portal URL can be opened. After authorization and th
 
 The target Merchant Portal validates the signature, issuer, ticket type, audience, target business, exact target origin, issued time, expiry, and nonce. It atomically consumes the nonce into `HQAccessTicketNonce` before creating an opaque, merchant-local `HQSupportSession`. Failed tickets create no session. A merchant-user request cannot exchange a ticket, and a merchant user cannot issue one.
 
-The Merchant Portal UI must visibly state that the current context is HQ-managed, for example **Viewing as Edge HQ**, and must not describe the operator as the merchant Owner.
+An `EDGE_FULL_ACCESS` session is presented like normal authorized use, with no
+banner or HQ-access indicator. It is still a distinct session-level role and is
+never represented as the merchant Owner or as a `BusinessMembership`.
 
 ## Authorization and audit
 
 The HQ-managed session records its access mode. Merchant Portal authorizes every request against that mode; possession of the session alone does not imply Owner or Admin permissions.
 
-Sprint 1 uses `SUPPORT_READ_ONLY` and stops after the Merchant Portal dashboard opens. It grants no merchant write or capability action. See [`../decisions/0009-sprint-1-merchant-setup-access.md`](../decisions/0009-sprint-1-merchant-setup-access.md).
+`EDGE_FULL_ACCESS` grants Edge operators full business, user, and application
+management. Affiliate sessions continue to use `SUPPORT_READ_ONLY`. See
+[`../decisions/0009-sprint-1-merchant-setup-access.md`](../decisions/0009-sprint-1-merchant-setup-access.md).
 
-HQ records the access request and ticket issuance. Merchant Portal records ticket consumption, session creation, each material action, and session termination or expiry. The records share an audit identifier and include or snapshot the originating HQ, HQ operator, merchant, timestamps, session, action, and outcome. A capability action uses the Merchant Portal audit reference for correlation; it does not receive an HQ application user.
+HQ records ticket issuance. For `EDGE_FULL_ACCESS`, Merchant Portal retains only
+the opaque session and consumed nonce required for authentication and replay
+prevention. It creates no merchant-side audit event, action record, activity log,
+or UI history for the Edge session. Affiliate support-session auditing is
+unchanged.
 
 Merchant deployments run a daily authenticated cleanup. It deletes expired
 `HQSupportSession` rows and consumed `HQAccessTicketNonce` rows older than 30
@@ -60,20 +68,18 @@ sequenceDiagram
     HQ-->>Operator: Signed, short-lived, one-use merchant-access ticket
     Operator->>Portal: Present ticket at the merchant's own origin
     Portal->>Portal: Verify ticket and atomically consume nonce
-    Portal->>Portal: Create HQ-managed session and audit evidence
-    Portal-->>Operator: Open merchant with HQ-managed indicator
+    Portal->>Portal: Create a distinct session-level role
+    Portal-->>Operator: Open merchant with normal authorized UI
     Operator->>Portal: Request a permitted capability launch
-    Portal->>Portal: Authorize merchant entitlement and HQ access mode
+    Portal->>Portal: Authorize merchant entitlement and session role
     Portal->>Capability: Existing launch ticket with merchant context
     Capability->>Capability: Verify ticket and create capability session
     Capability-->>Operator: Open capability for target merchant
-    Note over Portal,Capability: HQ identity is audit context, never an application user
+    Note over HQ,Portal: Edge audit evidence remains in HQ ticket issuance only
 ```
 
 ## Remaining architectural questions
 
-1. Define any access modes beyond Sprint 1's `SUPPORT_READ_ONLY` mode, including future merchant-write or capability-launch permissions.
-2. Name the authoritative source and lifecycle for the HQ business directory and `HQBusinessAssignment` records, including assignment approval and removal.
-3. Define ticket signing-key publication, rotation, overlap, and emergency revocation for merchant deployments.
-4. Define the audit action taxonomy, retention period, export requirements, and treatment of sensitive action payloads.
-5. Decide whether expiry or termination of an HQ-managed Merchant Portal session must terminate an already-created capability session; capability sessions are otherwise independent by design.
+1. Name the authoritative source and lifecycle for the HQ business directory and `HQBusinessAssignment` records, including assignment approval and removal.
+2. Define ticket signing-key publication, rotation, overlap, and emergency revocation for merchant deployments.
+3. Decide whether expiry or termination of an HQ-managed Merchant Portal session must terminate an already-created capability session; capability sessions are otherwise independent by design.

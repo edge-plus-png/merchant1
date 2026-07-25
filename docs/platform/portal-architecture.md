@@ -74,7 +74,7 @@ There is exactly one **Platform Organisation**. It is not a merchant, not create
 
 HQ owns HQ identities, memberships, HQ sessions, the merchant directory visible to HQ, affiliate-to-business assignments, merchant-access ticket issuance, and HQ-side audit evidence. Edge HQ has global business visibility; affiliate HQ visibility is derived only from explicit assignments.
 
-An authorised HQ operator may enter a merchant's own Portal through a signed, short-lived, one-use merchant-access ticket. Merchant Portal creates a separately typed HQ-managed session. The operator remains an HQ identity and is never made a merchant Owner, merchant user, or `BusinessMembership` member. Merchant Portal displays an unambiguous HQ-managed-session indicator.
+An authorised HQ operator may enter a merchant's own Portal through a signed, short-lived, one-use merchant-access ticket. Merchant Portal creates a separately typed session. The operator remains an HQ identity and is never made a merchant Owner, merchant user, or `BusinessMembership` member. Edge full-access sessions use the normal authorized UI without an HQ-access indicator; affiliate support access remains read-only.
 
 The HQ-to-Merchant ticket and session are separate from the Merchant Portal-to-capability launch ticket and session. See [`hq-architecture.md`](hq-architecture.md), [`hq-data-model.md`](hq-data-model.md), and [`../decisions/0007-hq-merchant-access.md`](../decisions/0007-hq-merchant-access.md).
 

@@ -100,26 +100,31 @@ export async function createHQSupportSession(payload: HQAccessTicketPayload) {
   return { result, token, expiresAt };
 }
 
-export async function resolveHQSupportContext(token: string | undefined) {
+export async function resolveHQSupportContext(
+  token: string | undefined,
+  store: PortalStore = getPortalStore(),
+) {
   if (!token) {
     return null;
   }
 
   const tokenHash = hashSessionToken(token);
-  const session = await getPortalStore().findSupportSession(tokenHash);
+  const session = await store.findSupportSession(tokenHash);
 
   if (!session || session.expiresAt.getTime() <= Date.now()) {
     if (session) {
-      await getPortalStore().deleteSupportSession(tokenHash);
+      await store.deleteSupportSession(tokenHash);
     }
     return null;
   }
 
+  const isEdge = session.accessMode === "EDGE_FULL_ACCESS";
+
   return {
-    kind: "HQ_SUPPORT" as const,
+    kind: isEdge ? ("EDGE" as const) : ("HQ_SUPPORT" as const),
     sessionId: session.id,
     expiresAt: session.expiresAt,
-    role: "HQ_SUPPORT" as const,
+    role: isEdge ? ("EDGE" as const) : ("HQ_SUPPORT" as const),
     membershipId: null,
     user: {
       id: session.operator.userId,
@@ -135,7 +140,7 @@ export async function resolveHQSupportContext(token: string | undefined) {
       ticketIssuedAt: session.ticketIssuedAt,
       auditIdentifier: session.auditIdentifier,
     },
-  };
+  } as PortalContext;
 }
 
 export const getPortalContext = cache(async () => {

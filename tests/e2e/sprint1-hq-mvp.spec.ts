@@ -29,9 +29,9 @@ test("Sprint 1: Edge changes merchant readiness and opens its Portal", async ({
     await page.getByRole("button", { name: "Continue to MFA" }).click();
 
     await expect(page).toHaveURL(`${hqOrigin}/setup?error=password_mismatch`);
-    await expect(page.getByRole("alert")).toContainText(
-      "The passwords do not match.",
-    );
+    await expect(
+      page.getByText("The passwords do not match.", { exact: true }),
+    ).toBeVisible();
 
     await page.getByLabel("Edge Company Name").fill("Edge Payments");
     await page.getByLabel("Master Name").fill("Morgan Reed");
@@ -202,16 +202,16 @@ test("Sprint 1: Edge changes merchant readiness and opens its Portal", async ({
     });
   });
 
-  await test.step("Edge opens the Merchant Portal with an HQ-managed session", async () => {
+  await test.step("Edge opens the Merchant Portal with full setup authority", async () => {
     const readyRow = page
       .getByRole("row")
       .filter({ hasText: "Provisioning Workshop" });
     await readyRow.getByRole("button", { name: "Open Merchant" }).click();
 
     await expect(page).toHaveURL(`${merchantOrigin}/business`);
-    await expect(page.getByText("Viewing as Edge Payments", { exact: true })).toBeVisible();
-    await expect(page.getByText("Temporary HQ-managed access", { exact: false })).toBeVisible();
     await expect(page.getByText("Morgan Reed", { exact: true })).toBeVisible();
+    await expect(page.getByText("Viewing as", { exact: false })).toHaveCount(0);
+    await expect(page.getByText("HQ-managed access", { exact: false })).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "Business profile" })).toBeVisible();
     await page.getByRole("button", { name: "Open navigation" }).click();
     await expect(page.getByRole("link", { name: "Business profile" })).toBeVisible();
@@ -222,7 +222,18 @@ test("Sprint 1: Edge changes merchant readiness and opens its Portal", async ({
     await expect(page.getByRole("link", { name: "Virtual Terminal" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Pay by Link" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Xero" })).toHaveCount(0);
-    await expect(page.getByText("read-only HQ-managed access")).toBeVisible();
+    await page.getByRole("button", { name: "Close navigation" }).click();
+    await expect(page.getByLabel("Legal business name")).toBeEnabled();
+    await page.getByLabel("Legal business name").fill("Edge Setup Ltd");
+    await page.getByLabel("Support email").fill("setup@example.com");
+    await page.getByLabel("Business contact name").fill("Edge Setup");
+    await page.getByLabel("Business contact phone").fill("+44 20 7946 0958");
+    await page.getByLabel("Address line 1").fill("1 Setup Street");
+    await page.getByLabel("Town / city").fill("London");
+    await page.getByLabel("Postcode").fill("SW1A 1AA");
+    await page.getByRole("button", { name: "Save changes" }).click();
+    await expect(page).toHaveURL(/\/business\?saved=1$/);
+    await expect(page.getByText("Business information saved.")).toBeVisible();
 
     const cookies = await page.context().cookies();
     expect(
@@ -252,10 +263,16 @@ test("Sprint 1: Edge changes merchant readiness and opens its Portal", async ({
       caret: "initial",
     });
 
+    await page.getByRole("button", { name: "Open navigation" }).click();
     await page.getByRole("link", { name: "Users", exact: true }).click();
     await expect(page).toHaveURL(`${merchantOrigin}/users`);
     await expect(page.getByRole("heading", { name: "Users" })).toBeVisible();
-    await expect(page.getByText("read-only HQ-managed access")).toBeVisible();
+    await expect(page.getByText("Invite team member")).toBeVisible();
+    await page.getByLabel("Full name").fill("Setup Owner");
+    await page.getByLabel("Email").fill("setup-owner@example.com");
+    await page.getByLabel("Role").selectOption("OWNER");
+    await page.getByRole("button", { name: "Create invite" }).click();
+    await expect(page.getByText("Invitation created")).toBeVisible();
     await page.screenshot({
       path: `${evidenceDirectory}/07-merchant-users.png`,
       fullPage: true,
@@ -275,7 +292,7 @@ test("Sprint 1: Edge changes merchant readiness and opens its Portal", async ({
   });
 
   await test.step("the merchant Owner updates Business and invites an Admin", async () => {
-    await page.getByRole("button", { name: "End access" }).click();
+    await page.getByRole("button", { name: "Sign Out" }).click();
     await expect(page).toHaveURL(`${merchantOrigin}/login`);
     await page.getByLabel("Email address").fill("owner@ready-workshop.example");
     await page.getByLabel("Password", { exact: true }).fill("OwnerPass123!");

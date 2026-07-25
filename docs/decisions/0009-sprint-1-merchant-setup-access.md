@@ -1,28 +1,30 @@
-# 0009 — Sprint 1 Stops After Merchant Portal Entry
+# 0009 — Edge Merchant Setup Access
 
 ## Decision
 
-Sprint 1 ends when an Edge HQ operator opens a merchant's own Portal and the
-Merchant Portal establishes a distinct HQ-managed session. The session uses the
-existing `SUPPORT_READ_ONLY` access mode and displays its HQ origin and audit
-identifier.
+An authenticated Edge HQ operator receives a ticket with
+`EDGE_FULL_ACCESS`. The Merchant Portal converts it into a distinct, temporary
+session-level `EDGE` role with full read/write access to business information,
+users, and application management. The role never creates or grants a
+`PortalUser`, `BusinessMembership`, or Owner membership to the operator.
 
-Sprint 1 does not grant any merchant write action. It does not create a merchant
-Owner, `PortalUser`, `BusinessMembership`, password, activation, capability access,
-payment access, or integration access.
+Affiliate tickets remain `SUPPORT_READ_ONLY`.
 
 ## Why
 
-The first delivery milestone proves the product and identity boundary before any
-merchant administration is added. The operator remains an HQ identity and the
-Merchant Portal can independently verify, record, and display that context.
+Edge product operators must be able to set up a merchant before its first owner
+accepts an invitation. Session-level authority preserves the product boundary
+without inventing a merchant identity for Edge.
 
 ## Consequences
 
-The only Merchant Portal route required by the Sprint 1 handover is `/dashboard`.
-HQ creates only a manual directory record with `PROVISIONING` or `READY` status;
-the handover is available only to a `READY` record with a Portal URL. Directory
-creation performs no infrastructure provisioning.
-Business setup, merchant users, activation, capabilities, payments, applications,
-and integrations require separate future authorization decisions and are not part
-of this milestone.
+The Merchant Portal presents an Edge session like normal authorized use: no
+banner, HQ-access label, audit identifier, or other access-mode indicator is
+shown. Only the opaque session and consumed ticket nonce are retained as needed
+to authenticate the session and prevent ticket replay.
+
+Merchant Portal does not create an access audit event for `EDGE_FULL_ACCESS` and
+does not log or display individual Edge actions. The authoritative audit evidence
+is HQ's ticket-issuance record. Normal business, membership, invitation, and app
+records still change when Edge performs the corresponding authorized write; those
+records contain no Edge action attribution.

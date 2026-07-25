@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import type { PortalActorRole } from "@/lib/auth/authorization";
 import type { PortalRole } from "@/lib/portal-types";
 
 type UserRow = {
@@ -47,7 +48,7 @@ export function UserManagement({
   users: UserRow[];
   invitations: InvitationRow[];
   canManage: boolean;
-  actorRole: PortalRole | "HQ_SUPPORT";
+  actorRole: PortalActorRole;
   businessName: string;
 }) {
   const router = useRouter();
@@ -168,7 +169,9 @@ export function UserManagement({
                   value={selectedRole}
                 >
                   {Object.entries(roleLabels).map(([value, label]) =>
-                    value === "OWNER" && actorRole !== "OWNER" ? null : (
+                    value === "OWNER" &&
+                    actorRole !== "OWNER" &&
+                    actorRole !== "EDGE" ? null : (
                       <option key={value} value={value}>
                         {label}
                       </option>
@@ -228,10 +231,13 @@ export function UserManagement({
             <tbody>
               {users.map((user) => {
                 const ownerChangeAllowed =
-                  actorRole === "OWNER" && !user.isPrimaryOwner;
+                  (actorRole === "OWNER" || actorRole === "EDGE") &&
+                  !user.isPrimaryOwner;
                 const roleReadOnly =
                   user.isPrimaryOwner ||
-                  (user.role === "OWNER" && actorRole !== "OWNER");
+                  (user.role === "OWNER" &&
+                    actorRole !== "OWNER" &&
+                    actorRole !== "EDGE");
 
                 return (
                   <tr key={user.membershipId}>

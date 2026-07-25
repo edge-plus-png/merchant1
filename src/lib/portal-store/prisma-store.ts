@@ -104,16 +104,16 @@ export const prismaPortalStore: PortalStore = {
     }
 
     try {
-      await database.$transaction([
-        database.hQAccessTicketNonce.create({
+      await database.$transaction(async (transaction) => {
+        await transaction.hQAccessTicketNonce.create({
           data: {
             nonce: input.nonce,
             businessId: input.businessId,
             auditIdentifier: input.auditIdentifier,
             expiresAt: input.ticketExpiresAt,
           },
-        }),
-        database.hQSupportSession.create({
+        });
+        await transaction.hQSupportSession.create({
           data: {
             tokenHash: input.tokenHash,
             businessId: input.businessId,
@@ -127,23 +127,26 @@ export const prismaPortalStore: PortalStore = {
             expiresAt: input.sessionExpiresAt,
             auditIdentifier: input.auditIdentifier,
           },
-        }),
-        database.hQAccessAuditEvent.create({
-          data: {
-            auditIdentifier: input.auditIdentifier,
-            action: "SUPPORT_SESSION_CREATED",
-            businessId: input.businessId,
-            originHqId: input.originHqId,
-            originHqName: input.originHqName,
-            hqUserId: input.hqUserId,
-            operatorName: input.operatorName,
-            operatorUsername: input.operatorUsername,
-            accessMode: input.accessMode,
-            ticketIssuedAt: input.ticketIssuedAt,
-            expiresAt: input.sessionExpiresAt,
-          },
-        }),
-      ]);
+        });
+
+        if (input.accessMode === "SUPPORT_READ_ONLY") {
+          await transaction.hQAccessAuditEvent.create({
+            data: {
+              auditIdentifier: input.auditIdentifier,
+              action: "SUPPORT_SESSION_CREATED",
+              businessId: input.businessId,
+              originHqId: input.originHqId,
+              originHqName: input.originHqName,
+              hqUserId: input.hqUserId,
+              operatorName: input.operatorName,
+              operatorUsername: input.operatorUsername,
+              accessMode: input.accessMode,
+              ticketIssuedAt: input.ticketIssuedAt,
+              expiresAt: input.sessionExpiresAt,
+            },
+          });
+        }
+      });
       return "created";
     } catch (error) {
       if (
@@ -442,6 +445,7 @@ export const prismaPortalStore: PortalStore = {
 
         if (
           input.actorRole !== "OWNER" &&
+          input.actorRole !== "EDGE" &&
           (target.role === "OWNER" || input.role === "OWNER")
         ) {
           return "owner_required" as const;
@@ -500,6 +504,7 @@ export const prismaPortalStore: PortalStore = {
         }
 
         if (
+          input.actorMembershipId !== null &&
           input.actorMembershipId === target.id &&
           !input.isActive
         ) {

@@ -42,6 +42,7 @@ enum HQRole {
 
 enum HQAccessMode {
   SUPPORT_READ_ONLY
+  EDGE_FULL_ACCESS
 }
 
 enum HQAccessAuditAction {
@@ -120,7 +121,7 @@ model BusinessMembership {
 model PortalUserInvitation {
   id                    String             @id @default(cuid())
   businessId            String
-  invitedByMembershipId String
+  invitedByMembershipId String?
   name                  String
   email                 String
   role                  PortalRole         @default(USER)
@@ -131,7 +132,7 @@ model PortalUserInvitation {
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
   business              Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  invitedBy             BusinessMembership @relation("InvitationSender", fields: [invitedByMembershipId], references: [id], onDelete: Cascade)
+  invitedBy             BusinessMembership? @relation("InvitationSender", fields: [invitedByMembershipId], references: [id], onDelete: Cascade)
 
   @@index([businessId, createdAt])
   @@index([businessId, email])

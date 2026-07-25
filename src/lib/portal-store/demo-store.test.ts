@@ -107,6 +107,55 @@ describe("merchant milestone store", () => {
     });
   });
 
+  it("allows Edge setup without membership attribution or merchant audit", async () => {
+    const { business, owner } = await createMerchantWithOwner();
+    const state = await getDemoState();
+    const now = new Date();
+
+    await expect(
+      demoPortalStore.consumeTicketAndCreateSupportSession({
+        tokenHash: "edge-session-hash",
+        nonce: "edge-ticket-nonce",
+        businessId: business.id,
+        originHqId: "edge-hq",
+        originHqName: "Edge HQ",
+        hqUserId: "edge-user",
+        operatorName: "Edge Operator",
+        operatorUsername: "edge.operator",
+        accessMode: "EDGE_FULL_ACCESS",
+        ticketIssuedAt: now,
+        ticketExpiresAt: new Date(now.getTime() + 60_000),
+        sessionExpiresAt: new Date(now.getTime() + 30 * 60_000),
+        auditIdentifier: "hqa_edge_access",
+      }),
+    ).resolves.toBe("created");
+    expect(state.supportSessions.size).toBe(1);
+    expect(state.consumedTicketNonces.size).toBe(1);
+    expect(state.hqAccessAudits).toHaveLength(0);
+
+    await expect(
+      demoPortalStore.createInvitation({
+        businessId: business.id,
+        invitedByMembershipId: null,
+        name: "New Owner",
+        email: "new-owner@example.com",
+        role: "OWNER",
+        tokenHash: "edge-owner-invite",
+        expiresAt: new Date(now.getTime() + 60_000),
+      }),
+    ).resolves.toMatchObject({ role: "OWNER" });
+
+    await expect(
+      demoPortalStore.updateMembershipRole({
+        businessId: business.id,
+        actorMembershipId: null,
+        actorRole: "EDGE",
+        membershipId: owner.id,
+        role: "OWNER",
+      }),
+    ).resolves.toBe("updated");
+  });
+
   it.each(["ADMIN", "MANAGER", "USER"] as PortalRole[])(
     "supports the %s merchant role",
     async (role) => {

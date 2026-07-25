@@ -33,6 +33,12 @@ describe("Portal role access", () => {
     expect(canInstallMove("HQ_SUPPORT")).toBe(false);
   });
 
+  it("grants Edge sessions full merchant-management authority", () => {
+    expect(canManageBusiness("EDGE")).toBe(true);
+    expect(canManageUsers("EDGE")).toBe(true);
+    expect(canInstallMove("EDGE")).toBe(true);
+  });
+
   it("allows an HQ-managed session to view the merchant milestone", () => {
     expect(canAccessArea("HQ_SUPPORT", "BUSINESS")).toBe(true);
     expect(canAccessArea("HQ_SUPPORT", "USERS")).toBe(true);

@@ -19,7 +19,7 @@ export type DemoState = {
   memberships: MembershipRecord[];
   invitations: Array<
     PortalUserInvitationRecord & {
-      invitedByMembershipId: string;
+      invitedByMembershipId: string | null;
       tokenHash: string;
     }
   >;
@@ -185,22 +185,24 @@ export const demoPortalStore: PortalStore = {
         username: input.operatorUsername,
       },
     });
-    state.hqAccessAudits.push({
-      id: `audit_${crypto.randomUUID()}`,
-      auditIdentifier: input.auditIdentifier,
-      action: "SUPPORT_SESSION_CREATED",
-      businessId: business.id,
-      businessName: business.name,
-      originHqId: input.originHqId,
-      originHqName: input.originHqName,
-      hqUserId: input.hqUserId,
-      operatorName: input.operatorName,
-      operatorUsername: input.operatorUsername,
-      accessMode: input.accessMode,
-      ticketIssuedAt: input.ticketIssuedAt,
-      expiresAt: input.sessionExpiresAt,
-      createdAt: new Date(),
-    });
+    if (input.accessMode === "SUPPORT_READ_ONLY") {
+      state.hqAccessAudits.push({
+        id: `audit_${crypto.randomUUID()}`,
+        auditIdentifier: input.auditIdentifier,
+        action: "SUPPORT_SESSION_CREATED",
+        businessId: business.id,
+        businessName: business.name,
+        originHqId: input.originHqId,
+        originHqName: input.originHqName,
+        hqUserId: input.hqUserId,
+        operatorName: input.operatorName,
+        operatorUsername: input.operatorUsername,
+        accessMode: input.accessMode,
+        ticketIssuedAt: input.ticketIssuedAt,
+        expiresAt: input.sessionExpiresAt,
+        createdAt: new Date(),
+      });
+    }
     return "created";
   },
 
@@ -470,6 +472,7 @@ export const demoPortalStore: PortalStore = {
 
     if (
       input.actorRole !== "OWNER" &&
+      input.actorRole !== "EDGE" &&
       (target.role === "OWNER" || input.role === "OWNER")
     ) {
       return "owner_required";
@@ -512,7 +515,11 @@ export const demoPortalStore: PortalStore = {
       return "not_found";
     }
 
-    if (target.id === input.actorMembershipId && !input.isActive) {
+    if (
+      input.actorMembershipId !== null &&
+      target.id === input.actorMembershipId &&
+      !input.isActive
+    ) {
       return "self";
     }
 

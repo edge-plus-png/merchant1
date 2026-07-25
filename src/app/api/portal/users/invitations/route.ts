@@ -25,9 +25,7 @@ export async function POST(request: Request) {
   const context = await getPortalContext();
 
   if (
-    !context ||
-    context.kind !== "MERCHANT_USER" ||
-    !canManageUsers(context.role)
+    !context || !canManageUsers(context.role)
   ) {
     return NextResponse.json({ error: "Forbidden." }, { status: 403 });
   }
@@ -43,7 +41,11 @@ export async function POST(request: Request) {
     );
   }
 
-  if (parsed.data.role === "OWNER" && context.role !== "OWNER") {
+  if (
+    parsed.data.role === "OWNER" &&
+    context.role !== "OWNER" &&
+    context.role !== "EDGE"
+  ) {
     return NextResponse.json(
       { error: "Only an Owner can invite another Owner." },
       { status: 403 },

@@ -39,9 +39,7 @@ export async function POST(
   const context = await getPortalContext();
 
   if (
-    !context ||
-    context.kind !== "MERCHANT_USER" ||
-    !canManageUsers(context.role)
+    !context || !canManageUsers(context.role)
   ) {
     return new NextResponse("Forbidden", { status: 403 });
   }

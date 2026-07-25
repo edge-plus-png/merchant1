@@ -69,7 +69,7 @@ describe("HQ merchant-access tickets", () => {
       targetBusiness: { id: business.id },
       originHq: { id: "hq-edge" },
       operator: { id: "hq-user-edge", username: "edge.master" },
-      accessMode: "SUPPORT_READ_ONLY",
+      accessMode: "EDGE_FULL_ACCESS",
     });
     expect(
       verifyHQAccessTicket(
@@ -81,6 +81,16 @@ describe("HQ merchant-access tickets", () => {
         new Date(now.getTime() + 10_000),
       ),
     ).toBeNull();
+  });
+
+  it("keeps affiliate access read-only", () => {
+    const ticket = createHQAccessTicket(
+      { ...context, hq: { ...context.hq, type: "AFFILIATE" } },
+      business,
+      new Date("2026-07-23T20:00:00.000Z"),
+    );
+
+    expect(ticket.payload.accessMode).toBe("SUPPORT_READ_ONLY");
   });
 
   it("rejects tampering and expiry", () => {

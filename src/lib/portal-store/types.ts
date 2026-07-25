@@ -11,6 +11,7 @@ import type {
   PortalUserInvitationRecord,
   VatStatus,
 } from "@/lib/portal-types";
+import type { PortalActorRole } from "@/lib/auth/authorization";
 
 export type CreateHQSupportSessionInput = {
   tokenHash: string;
@@ -59,7 +60,7 @@ export type UpdateBusinessInput = {
 
 export type CreateInvitationInput = {
   businessId: string;
-  invitedByMembershipId: string;
+  invitedByMembershipId: string | null;
   name: string;
   email: string;
   role: PortalRole;
@@ -127,14 +128,14 @@ export interface PortalStore {
   }): Promise<boolean>;
   updateMembershipRole(input: {
     businessId: string;
-    actorMembershipId: string;
-    actorRole: PortalRole;
+    actorMembershipId: string | null;
+    actorRole: PortalActorRole;
     membershipId: string;
     role: PortalRole;
   }): Promise<MembershipMutationResult>;
   setMembershipActive(input: {
     businessId: string;
-    actorMembershipId: string;
+    actorMembershipId: string | null;
     membershipId: string;
     isActive: boolean;
   }): Promise<MembershipMutationResult>;

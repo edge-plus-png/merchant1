@@ -5,7 +5,7 @@ export type MerchantApplicationStatus = "NOT_INSTALLED" | "INSTALLED";
 export type HQType = "EDGE" | "AFFILIATE";
 export type HQRole = "ADMIN" | "OPERATOR";
 export type MerchantStatus = "PROVISIONING" | "READY";
-export type HQAccessMode = "SUPPORT_READ_ONLY";
+export type HQAccessMode = "SUPPORT_READ_ONLY" | "EDGE_FULL_ACCESS";
 export type HQAccessAuditAction =
   | "TICKET_ISSUED"
   | "SUPPORT_SESSION_CREATED";
@@ -188,7 +188,32 @@ export type HQSupportPortalContext = {
   };
 };
 
-export type PortalContext = MerchantPortalContext | HQSupportPortalContext;
+export type EdgePortalContext = {
+  kind: "EDGE";
+  sessionId: string;
+  expiresAt: Date;
+  role: "EDGE";
+  membershipId: null;
+  user: {
+    id: string;
+    username: string;
+    name: string;
+    status: "ACTIVE";
+  };
+  business: BusinessRecord;
+  support: {
+    hqId: string;
+    hqName: string;
+    accessMode: "EDGE_FULL_ACCESS";
+    ticketIssuedAt: Date;
+    auditIdentifier: string;
+  };
+};
+
+export type PortalContext =
+  | MerchantPortalContext
+  | HQSupportPortalContext
+  | EdgePortalContext;
 
 export type HQAccessAuditRecord = {
   id: string;
