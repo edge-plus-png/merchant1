@@ -159,12 +159,17 @@ describe("Portal capability handover", () => {
     expect(response.headers.get("content-security-policy")).toContain(
       "form-action https://capability.example",
     );
+    expect(response.headers.get("content-security-policy")).toContain(
+      "script-src 'self'",
+    );
     expect(body).toContain(
       'action="https://capability.example/api/portal-launch" method="post"',
     );
     expect(ticket).toBeTruthy();
     expect(body).not.toContain("?ticket=");
     expect(body).not.toContain("#ticket=");
+    expect(body).toContain('<script defer src="/move-handover.js"></script>');
+    expect(body).not.toContain("<script nonce=");
     expect(new URL("https://capability.example/api/portal-launch").search).toBe("");
   });
 

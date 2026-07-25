@@ -62,7 +62,6 @@ export async function POST(request: Request) {
       portalOrigin,
     );
     const handoverUrl = new URL("/api/portal-launch", moveOrigin).toString();
-    const scriptNonce = crypto.randomUUID().replaceAll("-", "");
     const body = `<!doctype html>
 <html lang="en">
   <head>
@@ -79,7 +78,7 @@ export async function POST(request: Request) {
         <button type="submit">Continue to Move</button>
       </form>
     </main>
-    <script nonce="${scriptNonce}">document.getElementById("move-handover").submit();</script>
+    <script defer src="/move-handover.js"></script>
   </body>
 </html>`;
 
@@ -87,7 +86,7 @@ export async function POST(request: Request) {
       status: 200,
       headers: {
         "Cache-Control": "no-store",
-        "Content-Security-Policy": `default-src 'none'; form-action ${moveOrigin}; script-src 'nonce-${scriptNonce}'; style-src 'none'; base-uri 'none'; frame-ancestors 'none'`,
+        "Content-Security-Policy": `default-src 'none'; form-action ${moveOrigin}; script-src 'self'; style-src 'none'; base-uri 'none'; frame-ancestors 'none'`,
         "Content-Type": "text/html; charset=utf-8",
         "Referrer-Policy": "no-referrer",
         "X-Content-Type-Options": "nosniff",
