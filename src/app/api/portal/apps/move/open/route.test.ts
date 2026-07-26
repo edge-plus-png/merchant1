@@ -1,194 +1,87 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type {
-  MerchantApplicationRecord,
-  MerchantPortalContext,
-} from "@/lib/portal-types";
-
-const testPrivateKey = [
-  "-----BEGIN PRIVATE KEY-----",
-  "MC4CAQAwBQYDK2VwBCIEIGB5JbxemxHwpdQwBWOL+vaK3sl3gAb+kQAoRSww404N",
-  "-----END PRIVATE KEY-----",
-  "",
-].join("\n");
 
 const mocks = vi.hoisted(() => ({
-  context: vi.fn(),
-  listApplicationAccessSlugs: vi.fn(),
-  listApplications: vi.fn(),
+  launch: vi.fn(),
   sameOrigin: vi.fn(),
+  surface: vi.fn(),
 }));
 
+vi.mock("@/lib/application-launch", () => ({
+  launchPortalApplication: mocks.launch,
+}));
 vi.mock("@/lib/auth/csrf", () => ({
   isSameOriginRequest: mocks.sameOrigin,
 }));
-vi.mock("@/lib/auth/session", () => ({
-  getPortalContext: mocks.context,
-}));
-vi.mock("@/lib/env", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/env")>();
-  return {
-    ...actual,
-    getMoveApplicationOrigin: () => "https://capability.example",
-    getMoveLaunchKeyId: () => "portal-capability-test-1",
-    getMoveLaunchPrivateKey: () => testPrivateKey,
-    getMoveLaunchTicketTtlSeconds: () => 45,
-  };
-});
-vi.mock("@/lib/portal-store", () => ({
-  getPortalStore: () => ({
-    listApplicationAccessSlugs: mocks.listApplicationAccessSlugs,
-    listApplications: mocks.listApplications,
-  }),
-}));
 vi.mock("@/lib/surface", () => ({
-  requireRequestSurface: () => true,
+  requireRequestSurface: mocks.surface,
 }));
 
+import { GET } from "@/app/(merchant)/apps/[slug]/route";
 import { POST } from "@/app/api/portal/apps/move/open/route";
 
-const now = new Date("2026-07-24T12:00:00.000Z");
-const context: MerchantPortalContext = {
-  kind: "MERCHANT_USER",
-  sessionId: "portal-session-1",
-  expiresAt: new Date("2026-07-24T18:00:00.000Z"),
-  membershipId: "membership-1",
-  role: "OWNER",
-  user: {
-    id: "user-1",
-    email: "owner@example.com",
-    name: "Merchant Owner",
-    status: "ACTIVE",
-  },
-  business: {
-    id: "business-1",
-    slug: "merchant-one",
-    name: "Merchant One",
-    legalName: null,
-    supportEmail: null,
-    contactName: null,
-    contactPhone: null,
-    addressLine1: null,
-    addressLine2: null,
-    city: null,
-    county: null,
-    postcode: null,
-    countryCode: "GB",
-    vatStatus: "NOT_REGISTERED",
-    vatNumber: null,
-    portalUrl: "https://merchant.example",
-    status: "READY",
-    timezone: "Europe/London",
-    currency: "GBP",
-    createdAt: now,
-    updatedAt: now,
-  },
-};
-const installedApplication: MerchantApplicationRecord = {
-  id: "application-1",
-  businessId: context.business.id,
-  slug: "move",
-  name: "Move",
-  summary: "Merchant capability",
-  status: "INSTALLED",
-  launchUrl: "https://capability.example",
-  installedAt: now,
-  createdAt: now,
-  updatedAt: now,
-};
-
-function openRequest() {
-  return new Request("https://merchant.example/api/portal/apps/move/open", {
-    method: "POST",
-    headers: {
-      host: "merchant.example",
-      origin: "https://merchant.example",
-    },
+function request(path: string, method = "GET") {
+  return new Request(`https://merchant.example${path}`, {
+    method,
+    headers: method === "POST" ? { origin: "https://merchant.example" } : {},
   });
 }
 
-describe("Portal capability handover", () => {
+describe("Portal application launch route transports", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.context.mockResolvedValue(context);
-    mocks.listApplicationAccessSlugs.mockResolvedValue(["move"]);
-    mocks.listApplications.mockResolvedValue([installedApplication]);
+    mocks.surface.mockReturnValue(true);
     mocks.sameOrigin.mockReturnValue(true);
+    mocks.launch.mockResolvedValue(new Response("launching", { status: 200 }));
   });
 
-  it("refuses Open when the merchant does not have an installed entitlement", async () => {
-    mocks.listApplications.mockResolvedValue([
-      {
-        ...installedApplication,
-        status: "NOT_INSTALLED",
-        installedAt: null,
-      },
-    ]);
-
-    const response = await POST(openRequest());
-
-    expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe(
-      "https://merchant.example/apps?error=move-launch",
-    );
-  });
-
-  it("rejects an application origin that differs from the configured environment", async () => {
-    mocks.listApplications.mockResolvedValue([
-      {
-        ...installedApplication,
-        launchUrl: "https://untrusted.example",
-      },
-    ]);
-
-    const response = await POST(openRequest());
-
-    expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe(
-      "https://merchant.example/apps?error=move-configuration",
-    );
-  });
-
-  it("delivers the ticket only in a POST body to the fixed trusted endpoint", async () => {
-    const response = await POST(openRequest());
-    const body = await response.text();
-    const ticket = body.match(/name="ticket" value="([^"]+)"/)?.[1];
+  it("launches a bookmarkable GET without applying POST-only CSRF checks", async () => {
+    const directRequest = request("/apps/move");
+    const response = await GET(directRequest, {
+      params: Promise.resolve({ slug: "move" }),
+    });
 
     expect(response.status).toBe(200);
-    expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(response.headers.get("referrer-policy")).toBe("no-referrer");
-    expect(response.headers.get("content-security-policy")).toContain(
-      "form-action https://capability.example",
-    );
-    expect(response.headers.get("content-security-policy")).toContain(
-      "script-src 'self'",
-    );
-    expect(body).toContain(
-      'action="https://capability.example/api/portal-launch" method="post"',
-    );
-    expect(ticket).toBeTruthy();
-    expect(body).not.toContain("?ticket=");
-    expect(body).not.toContain("#ticket=");
-    expect(body).toContain('<script defer src="/move-handover.js"></script>');
-    expect(body).not.toContain("<script nonce=");
-    expect(new URL("https://capability.example/api/portal-launch").search).toBe("");
+    expect(mocks.sameOrigin).not.toHaveBeenCalled();
+    expect(mocks.launch).toHaveBeenCalledWith(directRequest, "move", {
+      unauthenticated: "login",
+      unavailable: "apps",
+    });
   });
 
-  it("denies a merchant user without per-application access", async () => {
-    mocks.listApplicationAccessSlugs.mockResolvedValue([]);
+  it("keeps the existing same-origin POST action on the shared launcher", async () => {
+    const postRequest = request("/api/portal/apps/move/open", "POST");
+    const response = await POST(postRequest);
 
-    const response = await POST(openRequest());
-
-    expect(response.status).toBe(403);
-    expect(mocks.listApplications).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(mocks.sameOrigin).toHaveBeenCalledWith(postRequest);
+    expect(mocks.launch).toHaveBeenCalledWith(postRequest, "move", {
+      unauthenticated: "forbidden",
+      unavailable: "forbidden",
+    });
   });
 
-  it("rejects cross-origin Open requests before issuing a ticket", async () => {
+  it("rejects cross-origin POST requests before shared launch logic", async () => {
     mocks.sameOrigin.mockReturnValue(false);
 
-    const response = await POST(openRequest());
+    const response = await POST(
+      new Request("https://merchant.example/api/portal/apps/move/open", {
+        method: "POST",
+        headers: { origin: "https://attacker.example" },
+      }),
+    );
 
     expect(response.status).toBe(403);
-    expect(await response.text()).toBe("Forbidden");
-    expect(mocks.listApplications).not.toHaveBeenCalled();
+    expect(mocks.launch).not.toHaveBeenCalled();
+  });
+
+  it("does not expose application routes on the HQ surface", async () => {
+    mocks.surface.mockReturnValue(false);
+
+    const response = await GET(request("/apps/move"), {
+      params: Promise.resolve({ slug: "move" }),
+    });
+
+    expect(response.status).toBe(404);
+    expect(mocks.launch).not.toHaveBeenCalled();
   });
 });
