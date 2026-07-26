@@ -45,6 +45,9 @@ The gateway is a narrow pass-through. It has no session store, database, token
 cache, request-body log, cookie log, or error detail containing supplied values.
 Cookie and ticket values may exist only transiently in request memory while the
 request is forwarded. Vercel access paths must never contain these values.
+Protected Portal previews are reached through Vercel's automation-bypass
+header. That preview-only secret is sent only to the Portal upstream and is
+never forwarded to a capability.
 
 ## Capability manifest
 

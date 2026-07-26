@@ -9,6 +9,7 @@ const config = {
   portalUpstreamOrigin: "https://merchant1.vercel.app",
   portalPublicOrigin: "https://merchant.getedgeportal.app",
   portalCookieNames: ["getedge_portal_session", "getedge_hq_support_session"],
+  portalProtectionBypass: "preview-bypass-secret-1234567890ab",
   sharedSecret: "test-shared-secret-with-at-least-32-characters",
 };
 
@@ -50,6 +51,9 @@ describe("stateless application gateway contract", () => {
     const fetcher = vi.fn(async (input, init = {}) => {
       const url = new URL(input);
       if (url.hostname === "merchant1.vercel.app") {
+        expect(new Headers(init.headers).get("x-vercel-protection-bypass")).toBe(
+          "preview-bypass-secret-1234567890ab",
+        );
         return Response.json(record("alpha"));
       }
       upstreamRequests.push({ url: url.toString(), headers: new Headers(init.headers) });
@@ -82,6 +86,9 @@ describe("stateless application gateway contract", () => {
     expect(upstreamRequests[0].headers.get("x-getedge-browser-origin")).toBe(
       "https://merchant.getedgeportal.app",
     );
+    expect(
+      upstreamRequests[0].headers.get("x-vercel-protection-bypass"),
+    ).toBeNull();
     expect(response.headers.get("set-cookie")).toBe(
       "alpha_session=CAPABILITY_TOKEN; Path=/apps/alpha/; HttpOnly; Secure; SameSite=Lax",
     );
@@ -95,8 +102,11 @@ describe("stateless application gateway contract", () => {
 
   it("forwards only Portal-owned cookies to the Portal server", async () => {
     let forwardedCookie = null;
+    let protectionBypass = null;
     const fetcher = vi.fn(async (_input, init = {}) => {
-      forwardedCookie = new Headers(init.headers).get("cookie");
+      const headers = new Headers(init.headers);
+      forwardedCookie = headers.get("cookie");
+      protectionBypass = headers.get("x-vercel-protection-bypass");
       return new Response("portal");
     });
     await handleGatewayRequest(
@@ -111,6 +121,7 @@ describe("stateless application gateway contract", () => {
     );
 
     expect(forwardedCookie).toBe("getedge_portal_session=PORTAL_TOKEN");
+    expect(protectionBypass).toBe("preview-bypass-secret-1234567890ab");
   });
 
   it("keeps Portal redirects public and drops non-Portal response cookies", async () => {

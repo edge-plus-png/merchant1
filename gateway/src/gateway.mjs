@@ -48,6 +48,15 @@ export function parseGatewayConfig(environment = process.env) {
   ) {
     throw new GatewayError(503);
   }
+  const portalProtectionBypass = String(
+    environment.PORTAL_PROTECTION_BYPASS_SECRET ?? "",
+  ).trim();
+  if (
+    portalProtectionBypass &&
+    !/^[A-Za-z0-9_-]{32,128}$/.test(portalProtectionBypass)
+  ) {
+    throw new GatewayError(503);
+  }
 
   return {
     portalUpstreamOrigin: cleanOrigin(
@@ -57,6 +66,7 @@ export function parseGatewayConfig(environment = process.env) {
       String(environment.PORTAL_PUBLIC_ORIGIN ?? ""),
     ),
     portalCookieNames,
+    portalProtectionBypass: portalProtectionBypass || null,
     sharedSecret: String(environment.APPLICATION_GATEWAY_SHARED_SECRET),
   };
 }
@@ -161,14 +171,18 @@ async function resolveCapability(slug, config, fetcher) {
     `/api/internal/application-routing/${encodeURIComponent(slug)}`,
     config.portalUpstreamOrigin,
   );
+  const headers = {
+    Accept: "application/json",
+    Authorization: `Bearer ${config.sharedSecret}`,
+    "X-Forwarded-Host": new URL(config.portalPublicOrigin).host,
+    "X-Forwarded-Proto": "https",
+  };
+  if (config.portalProtectionBypass) {
+    headers["X-Vercel-Protection-Bypass"] = config.portalProtectionBypass;
+  }
   const response = await fetcher(url, {
     cache: "no-store",
-    headers: {
-      Accept: "application/json",
-      Authorization: `Bearer ${config.sharedSecret}`,
-      "X-Forwarded-Host": new URL(config.portalPublicOrigin).host,
-      "X-Forwarded-Proto": "https",
-    },
+    headers,
     redirect: "manual",
   });
   if (!response.ok) throw new GatewayError(404);
@@ -349,15 +363,22 @@ function portalResponse(upstream, config) {
 async function proxyPortal(request, config, fetcher) {
   const incoming = new URL(request.url);
   const destination = new URL(`${incoming.pathname}${incoming.search}`, config.portalUpstreamOrigin);
+  const headers = proxyHeaders(
+    request,
+    config.portalCookieNames,
+    config.portalPublicOrigin,
+    config.portalPublicOrigin,
+  );
+  if (config.portalProtectionBypass) {
+    headers.set(
+      "x-vercel-protection-bypass",
+      config.portalProtectionBypass,
+    );
+  }
   const response = await fetcher(destination, {
     body: getRequestBody(request),
     cache: "no-store",
-    headers: proxyHeaders(
-      request,
-      config.portalCookieNames,
-      config.portalPublicOrigin,
-      config.portalPublicOrigin,
-    ),
+    headers,
     method: request.method,
     redirect: "manual",
     duplex: getRequestBody(request) ? "half" : undefined,
