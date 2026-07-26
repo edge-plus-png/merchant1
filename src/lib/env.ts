@@ -9,6 +9,7 @@ export const moveApplicationOrigins = {
   staging: "https://move-staging.getedgeportal.app",
   production: "https://move.getedgeportal.app",
 } as const;
+export const moveApplicationBasePath = "/apps/move";
 
 export function getSessionCookieName() {
   return z
@@ -91,9 +92,12 @@ export function getMoveApplicationOrigin() {
 
   if (
     process.env.NODE_ENV === "production" &&
-    !Object.values(moveApplicationOrigins).includes(
-      origin as (typeof moveApplicationOrigins)[keyof typeof moveApplicationOrigins],
-    )
+    ![
+      ...Object.values(moveApplicationOrigins),
+      parseMoveApplicationOrigin(
+        z.string().url().parse(process.env.PORTAL_CANONICAL_URL),
+      ),
+    ].includes(origin)
   ) {
     throw new Error("MOVE_APPLICATION_ORIGIN is not a trusted Move origin.");
   }
@@ -102,11 +106,33 @@ export function getMoveApplicationOrigin() {
 }
 
 export function getMoveApplicationEnvironment(origin: string) {
+  const configured = process.env.MOVE_APPLICATION_ENVIRONMENT;
+  if (configured) {
+    return z.enum(["staging", "production"]).parse(configured);
+  }
+
   const normalized = parseMoveApplicationOrigin(origin);
   if (normalized === moveApplicationOrigins.staging) return "staging" as const;
   if (normalized === moveApplicationOrigins.production) return "production" as const;
   if (process.env.NODE_ENV !== "production") return "staging" as const;
   throw new Error("Move environment cannot be determined from its origin.");
+}
+
+export function getMoveApplicationUpstreamOrigin() {
+  const configured = process.env.MOVE_UPSTREAM_ORIGIN ??
+    (isDemoMode() ? "https://move.example.test" : undefined);
+  const origin = parseMoveApplicationOrigin(z.string().url().parse(configured));
+
+  if (
+    process.env.NODE_ENV === "production" &&
+    !Object.values(moveApplicationOrigins).includes(
+      origin as (typeof moveApplicationOrigins)[keyof typeof moveApplicationOrigins],
+    )
+  ) {
+    throw new Error("MOVE_UPSTREAM_ORIGIN is not a trusted Move deployment.");
+  }
+
+  return origin;
 }
 
 export function parseMoveApplicationOrigin(value: string) {
@@ -123,7 +149,7 @@ export function parseMoveApplicationOrigin(value: string) {
     url.search ||
     url.hash
   ) {
-    throw new Error("MOVE_APPLICATION_ORIGIN must be a trusted HTTPS origin without a path, query, or credentials.");
+    throw new Error("Move origins must be trusted HTTPS origins without a path, query, or credentials.");
   }
 
   return url.origin;

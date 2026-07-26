@@ -74,10 +74,6 @@ export function createMoveLaunchTicket(
     throw new Error("Read-only HQ access cannot launch Move.");
   }
 
-  if (normalizedPortalOrigin === moveOrigin) {
-    throw new Error("Move must be hosted outside Merchant Portal.");
-  }
-
   const issuedAt = Math.floor(now.getTime() / 1000);
   const payload: MoveLaunchTicketPayload = {
     version: 1,

@@ -2,7 +2,11 @@ import "server-only";
 
 import { NextResponse } from "next/server";
 import { getPortalContext } from "@/lib/auth/session";
-import { getMoveApplicationOrigin, parseMoveApplicationOrigin } from "@/lib/env";
+import {
+  getMoveApplicationOrigin,
+  moveApplicationBasePath,
+  parseMoveApplicationOrigin,
+} from "@/lib/env";
 import { createMoveLaunchTicket } from "@/lib/move-launch/ticket";
 import { getPortalStore } from "@/lib/portal-store";
 import { getRequestOrigin } from "@/lib/surface";
@@ -29,11 +33,13 @@ function unavailableResponse(request: Request, response: FailureResponse) {
 }
 
 function moveHandoverResponse(
-  request: Request,
   moveOrigin: string,
   ticket: string,
 ) {
-  const handoverUrl = new URL("/api/portal-launch", moveOrigin).toString();
+  const handoverUrl = new URL(
+    `${moveApplicationBasePath}/api/portal-launch`,
+    moveOrigin,
+  ).toString();
   const body = `<!doctype html>
 <html lang="en">
   <head>
@@ -120,7 +126,7 @@ export async function launchPortalApplication(
       application,
       getRequestOrigin(request),
     );
-    return moveHandoverResponse(request, moveOrigin, launch.token);
+    return moveHandoverResponse(moveOrigin, launch.token);
   } catch {
     return unavailableResponse(request, options.unavailable);
   }

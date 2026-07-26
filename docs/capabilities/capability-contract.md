@@ -11,7 +11,7 @@ handover.
 Portal uses two merchant-local records:
 
 1. `MerchantApplication` stores one `(business, slug)` row, including install
-   state and the trusted launch origin.
+   state and the trusted browser-visible launch origin.
 2. `PortalCapabilityAccess` stores one `(membership, application slug)` row for
    each merchant user allowed to open that installed application.
 
@@ -27,8 +27,8 @@ not grant access to Events or Storefront.
 
 An application must provide:
 
-- a stable slug and independently deployed trusted origin;
-- `POST /api/portal-launch` for the signed handover;
+- a stable slug, independently deployed upstream, and Portal-owned public zone;
+- a signed handover endpoint inside that zone;
 - signature, audience, environment, expiry, and nonce verification;
 - its own post-handover session boundary, if it needs a session;
 - rejection of direct access to authenticated areas without a valid
@@ -45,9 +45,12 @@ routes, roles, modules, or product data.
 Move is the first application using this process:
 
 - slug: `move`
-- staging origin: `https://move-staging.getedgeportal.app`
-- production origin: `https://move.getedgeportal.app`
-- launch endpoint: `/api/portal-launch`
+- Merchant1 public origin: `https://merchant.getedgeportal.app`
+- public zone: `/apps/move`
+- staging upstream: `https://move-staging.getedgeportal.app`
+- launch endpoint: `/apps/move/api/portal-launch`
+- authenticated destination: `/apps/move/ops`
 
-No Move route is embedded in Portal. Move sessions and runtime data remain in
-Move's own deployment.
+Merchant Portal routes the Move zone to the independently deployed upstream and
+removes Portal/HQ cookies before forwarding. Move keeps its own path-scoped
+session and runtime data; Portal does not render or store Move internals.

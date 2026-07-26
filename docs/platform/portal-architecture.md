@@ -21,9 +21,11 @@ application entitlement and launch, payments, integrations, and shared merchant
 settings. It does not own application-internal sessions, routes, data, or product
 decisions.
 
-Move, Events, Storefront, and future applications run independently, on their
-own domains and in their own Vercel projects. Portal's responsibility ends after
-an authorized, signed handover succeeds.
+Move, Events, Storefront, and future applications run independently in their
+own Vercel projects. Their browser-visible routes occupy unique Portal-owned
+zones, while their upstream deployment, session, data, and releases remain
+independent. Portal's application responsibility ends after an authorized,
+signed handover and secure namespace routing.
 
 ## Where application entitlement lives
 
@@ -79,13 +81,15 @@ than launched and does not appear in My Apps.
 
 When an authorized principal opens an installed application, Merchant Portal
 creates a short-lived Ed25519-signed ticket and submits it by POST to the
-application's fixed `/api/portal-launch` endpoint. The ticket carries merchant,
+application's fixed zone endpoint, for example
+`/apps/move/api/portal-launch`. The ticket carries merchant,
 environment, entitlement, expiry, nonce, and an opaque initiator reference. It
 does not carry a Portal cookie, HQ access ticket, or reusable credential.
 
 The application verifies the ticket and then owns everything after acceptance.
-Portal does not embed application routes or store application sessions or
-runtime data.
+Portal routes the application namespace but does not render or store application
+sessions or runtime data. The proxy removes Portal/HQ cookies and forwards only
+the application's path-scoped session cookie.
 
 ## What HQ owns
 

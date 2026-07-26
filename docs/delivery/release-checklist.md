@@ -11,7 +11,7 @@ This is the concrete proof gate referenced by [`staging-to-template.md`](staging
 5. The Owner clicks Move. A signed launch ticket is issued and accepted by Move.
 6. Move receives the correct `merchantId` and reflects the correct business — not a default, not the wrong merchant.
 7. Move creates its own session; no second login prompt occurs anywhere in this flow.
-8. `/move/ops` (or Move's equivalent authenticated area) opens successfully inside that session.
+8. `/apps/move/ops` (or the application's equivalent Portal-owned zone) opens successfully inside that session.
 9. Direct access to a Move authenticated route without a valid launched session is rejected.
 10. A launch ticket, once used, cannot be replayed to open a second session.
 11. An expired launch ticket is rejected.

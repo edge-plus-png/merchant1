@@ -187,15 +187,23 @@ describe("Move launch ticket", () => {
     ).toBeNull();
   });
 
-  it("rejects an embedded Portal origin and expired tickets", () => {
-    expect(() =>
-      createMoveLaunchTicket(
-        context,
-        { ...application, launchUrl: "https://summit.getedgeportal.app" },
-        "https://summit.getedgeportal.app",
+  it("supports the merchant-owned Move zone and rejects expired tickets", () => {
+    const merchantZoneLaunch = createMoveLaunchTicket(
+      context,
+      { ...application, launchUrl: "https://summit.getedgeportal.app" },
+      "https://summit.getedgeportal.app",
+      now,
+    );
+    expect(
+      verifyMoveLaunchTicketSignature(
+        merchantZoneLaunch.token,
+        demoPublicKey,
         now,
       ),
-    ).toThrow("outside Merchant Portal");
+    ).toMatchObject({
+      portalOrigin: "https://summit.getedgeportal.app",
+      moveOrigin: "https://summit.getedgeportal.app",
+    });
 
     const launch = createMoveLaunchTicket(
       context,
