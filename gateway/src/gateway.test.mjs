@@ -69,6 +69,7 @@ describe("stateless application gateway contract", () => {
         headers: {
           Cookie:
             "getedge_portal_session=PORTAL_TOKEN; alpha_session=CAPABILITY_TOKEN; bravo_session=BRAVO_TOKEN",
+          "X-Vercel-Protection-Bypass": "gateway-browser-bypass-secret-value",
         },
       }),
       config,
@@ -89,6 +90,7 @@ describe("stateless application gateway contract", () => {
     expect(
       upstreamRequests[0].headers.get("x-vercel-protection-bypass"),
     ).toBeNull();
+    expect(upstreamRequests[0].headers.get("accept-encoding")).toBe("identity");
     expect(response.headers.get("set-cookie")).toBe(
       "alpha_session=CAPABILITY_TOKEN; Path=/apps/alpha/; HttpOnly; Secure; SameSite=Lax",
     );
@@ -154,6 +156,23 @@ describe("stateless application gateway contract", () => {
     expect(response.headers.getSetCookie()).toEqual([
       "getedge_portal_session=PORTAL_TOKEN; Path=/; HttpOnly; Secure",
     ]);
+  });
+
+  it("strips stale upstream content encoding after fetch decompression", async () => {
+    const fetcher = vi.fn(async () =>
+      new Response("portal html", {
+        headers: { "Content-Encoding": "br" },
+      }),
+    );
+
+    const response = await handleGatewayRequest(
+      new Request("https://merchant.getedgeportal.app/login"),
+      config,
+      fetcher,
+    );
+
+    expect(await response.text()).toBe("portal html");
+    expect(response.headers.get("content-encoding")).toBeNull();
   });
 
   it("routes two capability asset namespaces without cross-contamination", async () => {

@@ -12,6 +12,10 @@ const HOP_BY_HOP_HEADERS = new Set([
   "transfer-encoding",
   "upgrade",
 ]);
+const GATEWAY_CONTROL_HEADERS = new Set([
+  "x-vercel-protection-bypass",
+  "x-vercel-set-bypass-cookie",
+]);
 
 export class GatewayError extends Error {
   constructor(status = 502) {
@@ -154,7 +158,12 @@ function proxyHeaders(
 ) {
   const headers = new Headers();
   for (const [name, value] of request.headers) {
-    if (!HOP_BY_HOP_HEADERS.has(name.toLowerCase()) && name.toLowerCase() !== "cookie") {
+    const lower = name.toLowerCase();
+    if (
+      !HOP_BY_HOP_HEADERS.has(lower) &&
+      !GATEWAY_CONTROL_HEADERS.has(lower) &&
+      lower !== "cookie"
+    ) {
       headers.append(name, value);
     }
   }
@@ -163,6 +172,7 @@ function proxyHeaders(
   headers.set("x-forwarded-host", new URL(upstreamRequestOrigin).host);
   headers.set("x-forwarded-proto", "https");
   headers.set("x-getedge-browser-origin", browserOrigin);
+  headers.set("accept-encoding", "identity");
   return headers;
 }
 
@@ -293,7 +303,12 @@ async function capabilityResponse(upstream, routing, publicOrigin, routeKind) {
   const headers = new Headers();
   for (const [name, value] of upstream.headers) {
     const lower = name.toLowerCase();
-    if (!HOP_BY_HOP_HEADERS.has(lower) && lower !== "set-cookie" && lower !== "location") {
+    if (
+      !HOP_BY_HOP_HEADERS.has(lower) &&
+      lower !== "content-encoding" &&
+      lower !== "set-cookie" &&
+      lower !== "location"
+    ) {
       headers.append(name, value);
     }
   }
@@ -330,7 +345,12 @@ function portalResponse(upstream, config) {
   const headers = new Headers();
   for (const [name, value] of upstream.headers) {
     const lower = name.toLowerCase();
-    if (!HOP_BY_HOP_HEADERS.has(lower) && lower !== "set-cookie" && lower !== "location") {
+    if (
+      !HOP_BY_HOP_HEADERS.has(lower) &&
+      lower !== "content-encoding" &&
+      lower !== "set-cookie" &&
+      lower !== "location"
+    ) {
       headers.append(name, value);
     }
   }
