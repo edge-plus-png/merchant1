@@ -75,7 +75,11 @@ export function getCapabilityLaunchPrivateKey() {
     ].join("\n");
   }
 
-  return z.string().min(1).parse(process.env.CAPABILITY_LAUNCH_PRIVATE_KEY);
+  return z
+    .string()
+    .min(1)
+    .parse(process.env.CAPABILITY_LAUNCH_PRIVATE_KEY)
+    .replaceAll("\\n", "\n");
 }
 
 export function getApplicationReturnStateSecret() {

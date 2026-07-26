@@ -18,7 +18,7 @@ describe("Portal capability signing key endpoint", () => {
   afterEach(() => vi.unstubAllEnvs());
 
   it("publishes the current Ed25519 public key without caching", async () => {
-    vi.stubEnv("CAPABILITY_LAUNCH_PRIVATE_KEY", privateKey);
+    vi.stubEnv("CAPABILITY_LAUNCH_PRIVATE_KEY", privateKey.replaceAll("\n", "\\n"));
     vi.stubEnv("CAPABILITY_LAUNCH_KEY_ID", "portal-capability-test-1");
 
     const response = await GET(
