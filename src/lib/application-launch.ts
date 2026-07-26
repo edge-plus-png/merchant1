@@ -52,11 +52,13 @@ function applicationHandoverResponse(
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Opening ${safeName}</title>
+    <link rel="stylesheet" href="/application-handover.css">
   </head>
-  <body>
-    <main>
+  <body data-handover-state="pending">
+    <main class="handover-shell" id="application-handover-status" aria-live="polite">
+      <span class="handover-mark" aria-hidden="true">E</span>
       <h1>Opening ${safeName}</h1>
-      <p>Your secure handover is in progress.</p>
+      <p id="application-handover-message">Your secure handover is in progress.</p>
       <form id="application-handover" action="${handoverUrl}" method="post">
         <input type="hidden" name="ticket" value="${ticket}">
         <button type="submit">Continue to ${safeName}</button>
@@ -70,7 +72,7 @@ function applicationHandoverResponse(
     status: 200,
     headers: {
       "Cache-Control": "no-store",
-      "Content-Security-Policy": "default-src 'none'; connect-src 'self'; form-action 'self'; script-src 'self'; style-src 'none'; base-uri 'none'; frame-ancestors 'none'",
+      "Content-Security-Policy": "default-src 'none'; connect-src 'self'; form-action 'self'; script-src 'self'; style-src 'self'; base-uri 'none'; frame-ancestors 'none'",
       "Content-Type": "text/html; charset=utf-8",
       "Referrer-Policy": "no-referrer",
       "X-Content-Type-Options": "nosniff",

@@ -146,9 +146,16 @@ describe("Portal application launcher", () => {
     expect(response.headers.get("content-security-policy")).toContain(
       "form-action 'self'",
     );
+    expect(response.headers.get("content-security-policy")).toContain(
+      "style-src 'self'",
+    );
     expect(body).toContain(
       'action="/apps/move/__launch" method="post"',
     );
+    expect(body).toContain(
+      '<link rel="stylesheet" href="/application-handover.css">',
+    );
+    expect(body).toContain('data-handover-state="pending"');
     expect(body).toContain('<script defer src="/application-handover.js"></script>');
     expect(ticket).toBeTruthy();
     expect(body).not.toContain("?ticket=");

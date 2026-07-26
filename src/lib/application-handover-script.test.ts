@@ -8,6 +8,9 @@ describe("application handover browser history", () => {
     expect(source).toContain("await fetch(handoverForm.action");
     expect(source).toContain('history.replaceState(null, "", "/apps")');
     expect(source).toContain("window.location.assign(response.url)");
+    expect(source).toContain(
+      'document.body.dataset.handoverState = "failed"',
+    );
     expect(source).not.toContain("window.location.assign(handoverForm.action)");
   });
 });
