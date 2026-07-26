@@ -68,7 +68,7 @@ describe("stateless application gateway contract", () => {
       new Request("https://merchant.getedgeportal.app/apps/alpha/ops", {
         headers: {
           Cookie:
-            "getedge_portal_session=PORTAL_TOKEN; alpha_session=CAPABILITY_TOKEN; bravo_session=BRAVO_TOKEN",
+            "getedge_portal_session=PORTAL_TOKEN; alpha_session=CAPABILITY_TOKEN; alpha_session=LEGACY_ROOT_TOKEN; bravo_session=BRAVO_TOKEN",
           "X-Vercel-Protection-Bypass": "gateway-browser-bypass-secret-value",
         },
       }),
@@ -91,9 +91,10 @@ describe("stateless application gateway contract", () => {
       upstreamRequests[0].headers.get("x-vercel-protection-bypass"),
     ).toBeNull();
     expect(upstreamRequests[0].headers.get("accept-encoding")).toBe("identity");
-    expect(response.headers.get("set-cookie")).toBe(
+    expect(response.headers.getSetCookie()).toEqual([
+      "alpha_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; HttpOnly; Secure; SameSite=Lax",
       "alpha_session=CAPABILITY_TOKEN; Path=/apps/alpha/; HttpOnly; Secure; SameSite=Lax",
-    );
+    ]);
     expect(response.headers.get("content-security-policy")).toContain(
       "https://merchant.getedgeportal.app/_getedge/capability-assets/alpha/",
     );

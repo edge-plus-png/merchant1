@@ -142,12 +142,20 @@ function validateRoutingRecord(value, slug) {
 
 function filterCookieHeader(header, permittedNames) {
   const permitted = new Set(permittedNames);
-  return String(header ?? "")
+  const forwarded = new Map();
+  for (const part of String(header ?? "")
     .split(";")
     .map((part) => part.trim())
-    .filter(Boolean)
-    .filter((part) => permitted.has(part.slice(0, part.indexOf("="))))
-    .join("; ");
+    .filter(Boolean)) {
+    const separator = part.indexOf("=");
+    const name = separator > 0 ? part.slice(0, separator) : "";
+    if (permitted.has(name) && !forwarded.has(name)) {
+      // Browsers order same-name cookies by longest path first. Preserve the
+      // first value so a legacy root cookie cannot shadow the scoped one.
+      forwarded.set(name, part);
+    }
+  }
+  return [...forwarded.values()].join("; ");
 }
 
 function proxyHeaders(
@@ -225,6 +233,18 @@ export function scopeCapabilityCookie(value, routing) {
     pair,
     ...preserved,
     `Path=/apps/${routing.slug}/`,
+    "HttpOnly",
+    "Secure",
+    "SameSite=Lax",
+  ].join("; ");
+}
+
+function legacyCapabilityCookieDeletion(routing) {
+  return [
+    `${routing.sessionCookieName}=`,
+    "Path=/",
+    "Expires=Thu, 01 Jan 1970 00:00:00 GMT",
+    "Max-Age=0",
     "HttpOnly",
     "Secure",
     "SameSite=Lax",
@@ -316,6 +336,12 @@ async function capabilityResponse(upstream, routing, publicOrigin, routeKind) {
   const scopedCookies = getSetCookies(upstream.headers)
     .map((cookie) => scopeCapabilityCookie(cookie, routing))
     .filter(Boolean);
+  if (scopedCookies.length > 0) {
+    // Earlier mounted/sovereign builds could leave the capability cookie at
+    // Path=/. Clear that valueless legacy variant before returning the scoped
+    // cookie so Safari cannot select a stale session after launch.
+    headers.append("set-cookie", legacyCapabilityCookieDeletion(routing));
+  }
   for (const cookie of scopedCookies) headers.append("set-cookie", cookie);
 
   const location = upstream.headers.get("location");
