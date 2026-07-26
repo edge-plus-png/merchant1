@@ -2,6 +2,7 @@
 
 const handoverForm = document.getElementById("application-handover");
 if (handoverForm instanceof HTMLFormElement) {
+  const heading = document.getElementById("application-handover-heading");
   const message = document.getElementById("application-handover-message");
 
   handoverForm.addEventListener("submit", async (event) => {
@@ -9,6 +10,8 @@ if (handoverForm instanceof HTMLFormElement) {
     const button = handoverForm.querySelector("button");
     if (button instanceof HTMLButtonElement) button.disabled = true;
     document.body.dataset.handoverState = "pending";
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 10000);
 
     try {
       const response = await fetch(handoverForm.action, {
@@ -16,17 +19,23 @@ if (handoverForm instanceof HTMLFormElement) {
         credentials: "same-origin",
         method: "POST",
         redirect: "follow",
+        signal: controller.signal,
       });
       if (!response.ok) throw new Error("handover failed");
       history.replaceState(null, "", "/apps");
       window.location.assign(response.url);
     } catch {
       if (button instanceof HTMLButtonElement) button.disabled = false;
+      if (heading instanceof HTMLHeadingElement) {
+        heading.textContent = "Move did not open";
+      }
       if (message instanceof HTMLParagraphElement) {
         message.textContent =
-          "The app did not open automatically. Continue to try again.";
+          "Try again, or return to My Apps.";
       }
       document.body.dataset.handoverState = "failed";
+    } finally {
+      window.clearTimeout(timeout);
     }
   });
   handoverForm.requestSubmit();

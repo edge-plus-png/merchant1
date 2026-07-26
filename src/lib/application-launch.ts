@@ -56,13 +56,16 @@ function applicationHandoverResponse(
   </head>
   <body data-handover-state="pending">
     <main class="handover-shell" id="application-handover-status" aria-live="polite">
-      <span class="handover-mark" aria-hidden="true">E</span>
-      <h1>Opening ${safeName}</h1>
-      <p id="application-handover-message">Your secure handover is in progress.</p>
-      <form id="application-handover" action="${handoverUrl}" method="post">
-        <input type="hidden" name="ticket" value="${ticket}">
-        <button type="submit">Continue to ${safeName}</button>
-      </form>
+      <span class="handover-spinner" aria-hidden="true"></span>
+      <h1 id="application-handover-heading">Opening ${safeName}</h1>
+      <p id="application-handover-message">This should only take a moment.</p>
+      <div class="handover-actions">
+        <form id="application-handover" action="${handoverUrl}" method="post">
+          <input type="hidden" name="ticket" value="${ticket}">
+          <button type="submit">Try opening ${safeName} again</button>
+        </form>
+        <a href="/apps">Return to My Apps</a>
+      </div>
     </main>
     <script defer src="/application-handover.js"></script>
   </body>
