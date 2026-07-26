@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   canAccessArea,
-  canInstallMove,
+  canInstallApplication,
   canManageBusiness,
   canManageUsers,
   visiblePortalAreas,
@@ -26,17 +26,17 @@ describe("Portal role access", () => {
     expect(canManageUsers("OWNER")).toBe(true);
     expect(canManageUsers("ADMIN")).toBe(true);
     expect(canManageUsers("HQ_SUPPORT")).toBe(false);
-    expect(canInstallMove("OWNER")).toBe(true);
-    expect(canInstallMove("ADMIN")).toBe(true);
-    expect(canInstallMove("MANAGER")).toBe(false);
-    expect(canInstallMove("USER")).toBe(false);
-    expect(canInstallMove("HQ_SUPPORT")).toBe(false);
+    expect(canInstallApplication("OWNER")).toBe(true);
+    expect(canInstallApplication("ADMIN")).toBe(true);
+    expect(canInstallApplication("MANAGER")).toBe(false);
+    expect(canInstallApplication("USER")).toBe(false);
+    expect(canInstallApplication("HQ_SUPPORT")).toBe(false);
   });
 
   it("grants Edge sessions full merchant-management authority", () => {
     expect(canManageBusiness("EDGE")).toBe(true);
     expect(canManageUsers("EDGE")).toBe(true);
-    expect(canInstallMove("EDGE")).toBe(true);
+    expect(canInstallApplication("EDGE")).toBe(true);
   });
 
   it("allows an HQ-managed session to view the merchant milestone", () => {

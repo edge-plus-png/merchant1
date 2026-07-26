@@ -22,8 +22,10 @@ settings. It does not own application-internal sessions, routes, data, or produc
 decisions.
 
 Move, Events, Storefront, and future applications run independently, on their
-own domains and in their own Vercel projects. Portal's responsibility ends after
-an authorized, signed handover succeeds.
+own origins and in their own Vercel projects. Portal owns authorization and
+ticket issuance; the separate stateless gateway continues only as the transport
+for the canonical `/apps/{slug}/...` URL. See
+[`../capabilities/portal-application-routing.md`](../capabilities/portal-application-routing.md).
 
 ## Where application entitlement lives
 
@@ -83,9 +85,10 @@ application's fixed `/api/portal-launch` endpoint. The ticket carries merchant,
 environment, entitlement, expiry, nonce, and an opaque initiator reference. It
 does not carry a Portal cookie, HQ access ticket, or reusable credential.
 
-The application verifies the ticket and then owns everything after acceptance.
-Portal does not embed application routes or store application sessions or
-runtime data.
+The application verifies the ticket and owns its session and product after
+acceptance. Portal does not embed application routes or store application
+sessions or runtime data. The gateway forwards the capability's traffic without
+persisting, caching or logging session values.
 
 ## What HQ owns
 
@@ -104,4 +107,5 @@ are separate contracts with separate audiences and cookies.
 - Merchant users authenticate only to their merchant's Portal.
 - Applications receive a signed merchant-context handover, not a Portal or HQ
   account to provision.
-- Cookies and sessions are host-scoped and never shared across products.
+- Cookies are filtered and path-scoped at the application gateway; sessions are
+  never shared across products.

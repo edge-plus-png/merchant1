@@ -1,9 +1,10 @@
 import "server-only";
 
 import { NextResponse } from "next/server";
+import { fetchCapabilityManifest } from "@/lib/application-routing/manifest";
+import { createApplicationReturnState } from "@/lib/application-routing/return-state";
+import { createCapabilityLaunchTicket } from "@/lib/application-routing/ticket";
 import { getPortalContext } from "@/lib/auth/session";
-import { getMoveApplicationOrigin, parseMoveApplicationOrigin } from "@/lib/env";
-import { createMoveLaunchTicket } from "@/lib/move-launch/ticket";
 import { getPortalStore } from "@/lib/portal-store";
 import { getRequestOrigin } from "@/lib/surface";
 
@@ -28,29 +29,40 @@ function unavailableResponse(request: Request, response: FailureResponse) {
   return response === "apps" ? redirectTo(request, "/apps") : forbidden();
 }
 
-function moveHandoverResponse(
-  request: Request,
-  moveOrigin: string,
+function escapeHtml(value: string) {
+  return value.replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  })[character] ?? character);
+}
+
+function applicationHandoverResponse(
+  slug: string,
+  applicationName: string,
   ticket: string,
 ) {
-  const handoverUrl = new URL("/api/portal-launch", moveOrigin).toString();
+  const handoverUrl = `/apps/${slug}/__launch`;
+  const safeName = escapeHtml(applicationName);
   const body = `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Opening Move</title>
+    <title>Opening ${safeName}</title>
   </head>
   <body>
     <main>
-      <h1>Opening Move</h1>
+      <h1>Opening ${safeName}</h1>
       <p>Your secure handover is in progress.</p>
-      <form id="move-handover" action="${handoverUrl}" method="post">
+      <form id="application-handover" action="${handoverUrl}" method="post">
         <input type="hidden" name="ticket" value="${ticket}">
-        <button type="submit">Continue to Move</button>
+        <button type="submit">Continue to ${safeName}</button>
       </form>
     </main>
-    <script defer src="/move-handover.js"></script>
+    <script defer src="/application-handover.js"></script>
   </body>
 </html>`;
 
@@ -58,7 +70,7 @@ function moveHandoverResponse(
     status: 200,
     headers: {
       "Cache-Control": "no-store",
-      "Content-Security-Policy": `default-src 'none'; form-action ${moveOrigin}; script-src 'self'; style-src 'none'; base-uri 'none'; frame-ancestors 'none'`,
+      "Content-Security-Policy": "default-src 'none'; connect-src 'self'; form-action 'self'; script-src 'self'; style-src 'none'; base-uri 'none'; frame-ancestors 'none'",
       "Content-Type": "text/html; charset=utf-8",
       "Referrer-Policy": "no-referrer",
       "X-Content-Type-Options": "nosniff",
@@ -74,7 +86,12 @@ export async function launchPortalApplication(
   const context = await getPortalContext();
   if (!context) {
     return options.unauthenticated === "login"
-      ? redirectTo(request, "/login")
+      ? redirectTo(
+          request,
+          `/login?state=${encodeURIComponent(
+            createApplicationReturnState(`/apps/${slug}`),
+          )}`,
+        )
       : forbidden();
   }
 
@@ -105,22 +122,19 @@ export async function launchPortalApplication(
     return unavailableResponse(request, options.unavailable);
   }
 
-  if (slug !== "move") {
-    return unavailableResponse(request, options.unavailable);
-  }
-
   try {
-    const moveOrigin = parseMoveApplicationOrigin(application.launchUrl);
-    if (moveOrigin !== getMoveApplicationOrigin()) {
-      return unavailableResponse(request, options.unavailable);
-    }
-
-    const launch = createMoveLaunchTicket(
+    const manifest = await fetchCapabilityManifest(application);
+    const launch = createCapabilityLaunchTicket(
       context,
       application,
+      manifest,
       getRequestOrigin(request),
     );
-    return moveHandoverResponse(request, moveOrigin, launch.token);
+    return applicationHandoverResponse(
+      slug,
+      application.name,
+      launch.token,
+    );
   } catch {
     return unavailableResponse(request, options.unavailable);
   }

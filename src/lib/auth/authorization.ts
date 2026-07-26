@@ -22,6 +22,6 @@ export function canManageUsers(role: PortalActorRole) {
   return role === "OWNER" || role === "ADMIN" || role === "EDGE";
 }
 
-export function canInstallMove(role: PortalActorRole) {
+export function canInstallApplication(role: PortalActorRole) {
   return role === "OWNER" || role === "ADMIN" || role === "EDGE";
 }

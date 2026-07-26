@@ -223,8 +223,9 @@ describe("merchant milestone store", () => {
   it("installs only the Move entitlement against its trusted external origin", async () => {
     const { business } = await createMerchantWithOwner();
 
-    const installed = await demoPortalStore.installMove(
+    const installed = await demoPortalStore.installApplication(
       business.id,
+      "move",
       "https://move.example.test",
     );
     expect(installed).toMatchObject({
@@ -241,7 +242,11 @@ describe("merchant milestone store", () => {
     ).toBeInstanceOf(Date);
 
     await expect(
-      demoPortalStore.installMove(business.id, "https://move.example.test"),
+      demoPortalStore.installApplication(
+        business.id,
+        "move",
+        "https://move.example.test",
+      ),
     ).resolves.toMatchObject({
       status: "already_installed",
     });

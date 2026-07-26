@@ -76,7 +76,7 @@ export type MembershipMutationResult =
   | "owner_required"
   | "self";
 
-export type MoveInstallationResult =
+export type ApplicationInstallationResult =
   | {
       status: "installed" | "already_installed";
       application: MerchantApplicationRecord;
@@ -140,12 +140,17 @@ export interface PortalStore {
     isActive: boolean;
   }): Promise<MembershipMutationResult>;
   listApplications(businessId: string): Promise<MerchantApplicationRecord[]>;
+  consumeApplicationReturnStateNonce(input: {
+    nonce: string;
+    expiresAt: Date;
+  }): Promise<boolean>;
   listApplicationAccessSlugs(
     businessId: string,
     membershipId: string,
   ): Promise<string[]>;
-  installMove(
+  installApplication(
     businessId: string,
+    slug: string,
     trustedOrigin: string,
-  ): Promise<MoveInstallationResult>;
+  ): Promise<ApplicationInstallationResult>;
 }

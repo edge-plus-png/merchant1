@@ -560,6 +560,30 @@ export const prismaPortalStore: PortalStore = {
     });
   },
 
+  async consumeApplicationReturnStateNonce({ nonce, expiresAt }) {
+    try {
+      await getDb().$transaction(async (database) => {
+        await database.applicationReturnStateNonce.deleteMany({
+          where: { expiresAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
+        });
+        await database.applicationReturnStateNonce.create({
+          data: { nonce, expiresAt },
+        });
+      });
+      return true;
+    } catch (error) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        error.code === "P2002"
+      ) {
+        return false;
+      }
+      throw error;
+    }
+  },
+
   async listApplicationAccessSlugs(businessId, membershipId) {
     const access = await getDb().portalCapabilityAccess.findMany({
       where: { businessId, membershipId },
@@ -570,11 +594,11 @@ export const prismaPortalStore: PortalStore = {
     return access.map((item) => item.capabilitySlug);
   },
 
-  async installMove(businessId, trustedOrigin) {
+  async installApplication(businessId, slug, trustedOrigin) {
     return getDb().$transaction(
       async (database) => {
         const application = await database.merchantApplication.findUnique({
-          where: { businessId_slug: { businessId, slug: "move" } },
+          where: { businessId_slug: { businessId, slug } },
         });
 
         if (!application) {

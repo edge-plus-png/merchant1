@@ -5,11 +5,6 @@ const portalSurfaceSchema = z.enum(["HQ", "MERCHANT"]);
 
 export type PortalSurface = z.infer<typeof portalSurfaceSchema>;
 
-export const moveApplicationOrigins = {
-  staging: "https://move-staging.getedgeportal.app",
-  production: "https://move.getedgeportal.app",
-} as const;
-
 export function getSessionCookieName() {
   return z
     .string()
@@ -54,23 +49,23 @@ export function getHQAccessTicketTtlSeconds() {
     .parse(process.env.HQ_ACCESS_TICKET_TTL_SECONDS ?? "45");
 }
 
-export function getMoveLaunchTicketTtlSeconds() {
+export function getCapabilityLaunchTicketTtlSeconds() {
   return positiveInteger
     .max(60)
-    .parse(process.env.MOVE_LAUNCH_TICKET_TTL_SECONDS ?? "45");
+    .parse(process.env.CAPABILITY_LAUNCH_TICKET_TTL_SECONDS ?? "45");
 }
 
-export function getMoveLaunchKeyId() {
+export function getCapabilityLaunchKeyId() {
   const value = isDemoMode()
-    ? process.env.MOVE_LAUNCH_KEY_ID ?? "portal-move-demo-1"
-    : process.env.MOVE_LAUNCH_KEY_ID;
+    ? process.env.CAPABILITY_LAUNCH_KEY_ID ?? "portal-capability-demo-1"
+    : process.env.CAPABILITY_LAUNCH_KEY_ID;
   return z
     .string()
     .regex(/^[A-Za-z0-9._-]{3,80}$/)
     .parse(value);
 }
 
-export function getMoveLaunchPrivateKey() {
+export function getCapabilityLaunchPrivateKey() {
   if (isDemoMode()) {
     return [
       "-----BEGIN PRIVATE KEY-----",
@@ -80,53 +75,36 @@ export function getMoveLaunchPrivateKey() {
     ].join("\n");
   }
 
-  return z.string().min(1).parse(process.env.MOVE_LAUNCH_PRIVATE_KEY);
+  return z.string().min(1).parse(process.env.CAPABILITY_LAUNCH_PRIVATE_KEY);
 }
 
-export function getMoveApplicationOrigin() {
-  const configured = process.env.MOVE_APPLICATION_ORIGIN ??
-    (isDemoMode() ? "https://move.example.test" : undefined);
+export function getApplicationReturnStateSecret() {
+  const encoded = isDemoMode()
+    ? process.env.APPLICATION_RETURN_STATE_SECRET ??
+      Buffer.alloc(32, 11).toString("base64")
+    : z.string().min(1).parse(process.env.APPLICATION_RETURN_STATE_SECRET);
+  const key = Buffer.from(encoded, "base64");
 
-  const origin = parseMoveApplicationOrigin(z.string().url().parse(configured));
-
-  if (
-    process.env.NODE_ENV === "production" &&
-    !Object.values(moveApplicationOrigins).includes(
-      origin as (typeof moveApplicationOrigins)[keyof typeof moveApplicationOrigins],
-    )
-  ) {
-    throw new Error("MOVE_APPLICATION_ORIGIN is not a trusted Move origin.");
+  if (key.length !== 32) {
+    throw new Error(
+      "APPLICATION_RETURN_STATE_SECRET must be a base64-encoded 32-byte key.",
+    );
   }
 
-  return origin;
+  return key;
 }
 
-export function getMoveApplicationEnvironment(origin: string) {
-  const normalized = parseMoveApplicationOrigin(origin);
-  if (normalized === moveApplicationOrigins.staging) return "staging" as const;
-  if (normalized === moveApplicationOrigins.production) return "production" as const;
-  if (process.env.NODE_ENV !== "production") return "staging" as const;
-  throw new Error("Move environment cannot be determined from its origin.");
+export function getApplicationReturnStateTtlSeconds() {
+  return positiveInteger
+    .max(900)
+    .parse(process.env.APPLICATION_RETURN_STATE_TTL_SECONDS ?? "600");
 }
 
-export function parseMoveApplicationOrigin(value: string) {
-  const url = new URL(value);
-  const permitsLocalHttp =
-    process.env.NODE_ENV !== "production" &&
-    (url.hostname === "localhost" || url.hostname.endsWith(".localhost"));
-
-  if (
-    (url.protocol !== "https:" && !permitsLocalHttp) ||
-    url.username ||
-    url.password ||
-    url.pathname !== "/" ||
-    url.search ||
-    url.hash
-  ) {
-    throw new Error("MOVE_APPLICATION_ORIGIN must be a trusted HTTPS origin without a path, query, or credentials.");
-  }
-
-  return url.origin;
+export function getApplicationGatewaySharedSecret() {
+  return isDemoMode()
+    ? process.env.APPLICATION_GATEWAY_SHARED_SECRET ??
+        "demo-application-gateway-secret-not-for-production"
+    : z.string().min(32).parse(process.env.APPLICATION_GATEWAY_SHARED_SECRET);
 }
 
 export function getConfiguredPortalSurface(): PortalSurface {

@@ -17,3 +17,9 @@ A shared session would mean a capability's security depends on Portal's cookie h
 ## Consequences
 
 A Merchant Portal cannot use an HQ cookie; it trusts only its own HQ-managed session after ticket exchange. A capability cannot ask "is this user still logged into Merchant Portal or HQ" mid-session; it manages its own session lifetime independently once launched. Logging out of either upstream product does not, by itself, end an already-launched capability session — if that matters for a given capability, the capability must apply its own reasonably short session expiry.
+
+When Portal and capabilities share the public merchant hostname, the stateless
+application gateway enforces this decision by forwarding only Portal-owned
+cookies to Portal and only the manifest-declared capability cookie to that
+capability. See
+[`../capabilities/portal-application-routing.md`](../capabilities/portal-application-routing.md).

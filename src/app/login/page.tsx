@@ -17,6 +17,7 @@ export default async function LoginPage({
     error?: string;
     invited?: string;
     setup?: string;
+    state?: string;
   }>;
 }) {
   const surface = await getPortalSurface();
@@ -33,7 +34,7 @@ export default async function LoginPage({
     redirect("/business");
   }
 
-  const { error, invited, setup } = await searchParams;
+  const { error, invited, setup, state } = await searchParams;
 
   return (
     <main className="login-page">
@@ -75,6 +76,7 @@ export default async function LoginPage({
             action={surface === "HQ" ? "/api/hq-auth/login" : "/api/auth/login"}
             hasError={error === "invalid"}
             identifier={surface === "HQ" ? "username" : "email"}
+            returnState={surface === "MERCHANT" ? state : undefined}
           />
         </div>
         <MerchantIllustration />

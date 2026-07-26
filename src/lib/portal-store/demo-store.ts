@@ -30,6 +30,7 @@ export type DemoState = {
     capabilitySlug: string;
   }>;
   sessions: Map<string, PortalSessionRecord>;
+  applicationReturnStateNonces: Map<string, Date>;
   hqMemberships: HQMembershipRecord[];
   hqAssignments: Array<{
     hqId: string;
@@ -64,6 +65,7 @@ async function createDemoState(): Promise<DemoState> {
     applications: [],
     capabilityAccess: [],
     sessions: new Map(),
+    applicationReturnStateNonces: new Map(),
     hqMemberships: [],
     hqAssignments: [],
     hqSessions: new Map(),
@@ -567,6 +569,14 @@ export const demoPortalStore: PortalStore = {
       .sort((left, right) => left.createdAt.getTime() - right.createdAt.getTime());
   },
 
+  async consumeApplicationReturnStateNonce({ nonce, expiresAt }) {
+    const state = await getDemoState();
+    const nonces = state.applicationReturnStateNonces;
+    if (nonces.has(nonce)) return false;
+    nonces.set(nonce, expiresAt);
+    return true;
+  },
+
   async listApplicationAccessSlugs(businessId, membershipId) {
     const state = await getDemoState();
     return state.capabilityAccess
@@ -579,10 +589,10 @@ export const demoPortalStore: PortalStore = {
       .sort();
   },
 
-  async installMove(businessId, trustedOrigin) {
+  async installApplication(businessId, slug, trustedOrigin) {
     const state = await getDemoState();
     const application = state.applications.find(
-      (item) => item.businessId === businessId && item.slug === "move",
+      (item) => item.businessId === businessId && item.slug === slug,
     );
 
     if (!application) {

@@ -1,15 +1,15 @@
 import type { Metadata } from "next";
 import { ApplicationCard } from "@/components/application-card";
-import { canInstallMove } from "@/lib/auth/authorization";
+import { canInstallApplication } from "@/lib/auth/authorization";
 import { requirePortalContext } from "@/lib/auth/session";
 import { getPortalStore } from "@/lib/portal-store";
 
 export const metadata: Metadata = { title: "My Apps" };
 
 const errorMessages: Record<string, string> = {
-  "move-configuration": "Move is not configured for this environment.",
-  "move-launch": "Move could not be opened. Please try again.",
-  "move-missing": "Move is not available for this merchant.",
+  "application-configuration": "The application is not configured for this environment.",
+  "application-launch": "The application could not be opened. Please try again.",
+  "application-missing": "The application is not available for this merchant.",
 };
 
 export default async function AppsPage({
@@ -29,7 +29,7 @@ export default async function AppsPage({
           ),
         )
       : new Set<string>();
-  const canInstall = canInstallMove(context.role);
+  const canInstall = canInstallApplication(context.role);
   const { error, installed } = await searchParams;
 
   return (
@@ -40,9 +40,9 @@ export default async function AppsPage({
         <span>Install and open applications for this merchant.</span>
       </section>
 
-      {installed === "move" ? (
+      {installed ? (
         <p className="success-notice" role="status">
-          Move installed successfully.
+          Application installed successfully.
         </p>
       ) : null}
       {error ? (

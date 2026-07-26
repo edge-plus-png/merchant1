@@ -71,8 +71,9 @@ function createStore(expiresAt: Date): PortalStore {
     updateMembershipRole: async () => "not_found",
     setMembershipActive: async () => "not_found",
     listApplications: async () => [],
+    consumeApplicationReturnStateNonce: async () => true,
     listApplicationAccessSlugs: async () => [],
-    installMove: async () => ({ status: "not_found" }),
+    installApplication: async () => ({ status: "not_found" }),
   };
 }
 

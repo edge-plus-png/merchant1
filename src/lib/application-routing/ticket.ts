@@ -1,30 +1,29 @@
 import { randomUUID, sign, verify } from "node:crypto";
 import { z } from "zod";
 import {
-  getMoveApplicationEnvironment,
-  getMoveLaunchKeyId,
-  getMoveLaunchPrivateKey,
-  getMoveLaunchTicketTtlSeconds,
-  parseMoveApplicationOrigin,
+  getCapabilityLaunchKeyId,
+  getCapabilityLaunchPrivateKey,
+  getCapabilityLaunchTicketTtlSeconds,
 } from "@/lib/env";
+import type { CapabilityManifest } from "@/lib/application-routing/manifest";
 import type {
   MerchantApplicationRecord,
   PortalContext,
 } from "@/lib/portal-types";
 
-const moveLaunchHeaderSchema = z.object({
+const launchHeaderSchema = z.object({
   alg: z.literal("EdDSA"),
-  typ: z.literal("MOVE+JWT"),
+  typ: z.literal("GETEDGE-CAPABILITY+JWT"),
   kid: z.string().min(3).max(80),
 });
 
-const moveLaunchPayloadSchema = z.object({
+const launchPayloadSchema = z.object({
   version: z.literal(1),
   issuer: z.literal("getedge-merchant-portal"),
-  audience: z.literal("move"),
+  audience: z.string().regex(/^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/),
   nonce: z.string().uuid(),
   portalOrigin: z.string().url(),
-  moveOrigin: z.string().url(),
+  applicationOrigin: z.string().url(),
   environment: z.enum(["staging", "production"]),
   initiatedBy: z.string().min(1),
   merchant: z.object({
@@ -33,15 +32,15 @@ const moveLaunchPayloadSchema = z.object({
   }),
   entitlement: z.object({
     applicationId: z.string().min(1),
-    slug: z.literal("move"),
+    slug: z.string().min(1),
     installedAt: z.string().datetime(),
   }),
   issuedAt: z.number().int().positive(),
   expiresAt: z.number().int().positive(),
 });
 
-export type MoveLaunchTicketPayload = z.infer<
-  typeof moveLaunchPayloadSchema
+export type CapabilityLaunchTicketPayload = z.infer<
+  typeof launchPayloadSchema
 >;
 
 function encodeJson(value: unknown) {
@@ -52,41 +51,41 @@ function decodeJson(value: string) {
   return JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as unknown;
 }
 
-export function createMoveLaunchTicket(
+export function createCapabilityLaunchTicket(
   context: PortalContext,
   application: MerchantApplicationRecord,
+  manifest: CapabilityManifest,
   portalOrigin: string,
   now = new Date(),
 ) {
   if (
-    application.slug !== "move" ||
+    application.slug !== manifest.slug ||
     application.status !== "INSTALLED" ||
     !application.installedAt ||
     !application.launchUrl
   ) {
-    throw new Error("Move is not installed for this merchant.");
+    throw new Error("Application is not installed for this merchant.");
+  }
+
+  if (context.kind === "HQ_SUPPORT") {
+    throw new Error("Read-only HQ access cannot launch applications.");
   }
 
   const normalizedPortalOrigin = new URL(portalOrigin).origin;
-  const moveOrigin = parseMoveApplicationOrigin(application.launchUrl);
-
-  if (context.kind === "HQ_SUPPORT") {
-    throw new Error("Read-only HQ access cannot launch Move.");
-  }
-
-  if (normalizedPortalOrigin === moveOrigin) {
-    throw new Error("Move must be hosted outside Merchant Portal.");
+  const applicationOrigin = new URL(manifest.applicationOrigin).origin;
+  if (normalizedPortalOrigin === applicationOrigin) {
+    throw new Error("Capability origin must be separate from Merchant Portal.");
   }
 
   const issuedAt = Math.floor(now.getTime() / 1000);
-  const payload: MoveLaunchTicketPayload = {
+  const payload: CapabilityLaunchTicketPayload = {
     version: 1,
     issuer: "getedge-merchant-portal",
-    audience: "move",
+    audience: manifest.slug,
     nonce: randomUUID(),
     portalOrigin: normalizedPortalOrigin,
-    moveOrigin,
-    environment: getMoveApplicationEnvironment(moveOrigin),
+    applicationOrigin,
+    environment: manifest.environment,
     initiatedBy:
       context.kind === "MERCHANT_USER"
         ? `merchant-user:${context.user.id}`
@@ -97,23 +96,23 @@ export function createMoveLaunchTicket(
     },
     entitlement: {
       applicationId: application.id,
-      slug: "move",
+      slug: manifest.slug,
       installedAt: application.installedAt.toISOString(),
     },
     issuedAt,
-    expiresAt: issuedAt + getMoveLaunchTicketTtlSeconds(),
+    expiresAt: issuedAt + getCapabilityLaunchTicketTtlSeconds(),
   };
   const header = encodeJson({
     alg: "EdDSA",
-    typ: "MOVE+JWT",
-    kid: getMoveLaunchKeyId(),
+    typ: "GETEDGE-CAPABILITY+JWT",
+    kid: getCapabilityLaunchKeyId(),
   });
   const body = encodeJson(payload);
   const signingInput = `${header}.${body}`;
   const signature = sign(
     null,
     Buffer.from(signingInput),
-    getMoveLaunchPrivateKey(),
+    getCapabilityLaunchPrivateKey(),
   ).toString("base64url");
 
   return {
@@ -122,24 +121,20 @@ export function createMoveLaunchTicket(
   };
 }
 
-export function verifyMoveLaunchTicketSignature(
+export function verifyCapabilityLaunchTicketSignature(
   token: string,
   publicKey: string,
   now = new Date(),
 ) {
   const [headerValue, payloadValue, signatureValue, extra] = token.split(".");
-
-  if (!headerValue || !payloadValue || !signatureValue || extra) {
-    return null;
-  }
+  if (!headerValue || !payloadValue || !signatureValue || extra) return null;
 
   try {
-    moveLaunchHeaderSchema.parse(decodeJson(headerValue));
-    const payload = moveLaunchPayloadSchema.parse(decodeJson(payloadValue));
-    const signingInput = `${headerValue}.${payloadValue}`;
+    launchHeaderSchema.parse(decodeJson(headerValue));
+    const payload = launchPayloadSchema.parse(decodeJson(payloadValue));
     const signatureValid = verify(
       null,
-      Buffer.from(signingInput),
+      Buffer.from(`${headerValue}.${payloadValue}`),
       publicKey,
       Buffer.from(signatureValue, "base64url"),
     );
@@ -147,6 +142,7 @@ export function verifyMoveLaunchTicketSignature(
 
     if (
       !signatureValid ||
+      payload.entitlement.slug !== payload.audience ||
       payload.issuedAt > currentTime + 5 ||
       payload.expiresAt <= currentTime ||
       payload.expiresAt - payload.issuedAt > 60

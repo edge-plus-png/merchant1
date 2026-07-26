@@ -47,7 +47,7 @@ Each capability (Move, Events, Storefront) gets its own pair of Vercel projects,
 | Events | `events-staging` | `events-staging.getedgeportal.app` | `events-production` | `events.getedgeportal.app` |
 | Storefront | `storefront-staging` | `storefront-staging.getedgeportal.app` | `storefront-production` | `storefront.getedgeportal.app` |
 
-Each capability domain is genuinely its own — a capability is never reached through a Portal or Template domain, and Portal never proxies or rewrites into it (see [`../capabilities/capability-starter.md`](../capabilities/capability-starter.md), "Own-domain configuration"). Portal links or redirects a user to the relevant capability domain with a signed launch ticket.
+Each capability domain and deployment remains genuinely its own. Merchant-facing screens use Portal's canonical `/apps/{slug}/...` namespace through the stateless application gateway, while the gateway routes to the capability's registered sovereign origin. Cookie, asset, CSP and direct-origin isolation are defined by [`../capabilities/portal-application-routing.md`](../capabilities/portal-application-routing.md).
 
 ## Verification projects
 

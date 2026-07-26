@@ -1,6 +1,5 @@
 import { PrismaClient } from "@prisma/client";
 import { z } from "zod";
-import { getMoveApplicationOrigin } from "../src/lib/env";
 
 const prisma = new PrismaClient();
 
@@ -11,8 +10,31 @@ const merchantBootstrapSchema = z.object({
   portalUrl: z.string().url(),
 });
 
+const exactHttpsOriginSchema = z.string().url().refine((value) => {
+  const url = new URL(value);
+  return (
+    url.protocol === "https:" &&
+    !url.username &&
+    !url.password &&
+    !url.search &&
+    !url.hash &&
+    value === url.origin
+  );
+}, "Capability origin must be an exact HTTPS origin.");
+
+const capabilityRegistrySchema = z.array(
+  z.object({
+    slug: z.string().regex(/^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/),
+    name: z.string().min(1),
+    summary: z.string().min(1),
+    applicationOrigin: exactHttpsOriginSchema,
+  }),
+);
+
 async function seedMerchantDirectoryRecord() {
-  const moveApplicationOrigin = getMoveApplicationOrigin();
+  const capabilities = capabilityRegistrySchema.parse(
+    JSON.parse(process.env.CAPABILITY_REGISTRY_JSON ?? "[]"),
+  );
   const input = merchantBootstrapSchema.parse({
     businessId: process.env.PORTAL_BOOTSTRAP_BUSINESS_ID,
     businessName: process.env.PORTAL_BOOTSTRAP_BUSINESS_NAME,
@@ -31,27 +53,29 @@ async function seedMerchantDirectoryRecord() {
     },
   });
 
-  await prisma.merchantApplication.upsert({
-    where: {
-      businessId_slug: {
-        businessId: business.id,
-        slug: "move",
+  for (const capability of capabilities) {
+    await prisma.merchantApplication.upsert({
+      where: {
+        businessId_slug: {
+          businessId: business.id,
+          slug: capability.slug,
+        },
       },
-    },
-    update: {
-      name: "Move",
-      summary: "Manage your Move access for this business.",
-      launchUrl: moveApplicationOrigin,
-    },
-    create: {
-      businessId: business.id,
-      slug: "move",
-      name: "Move",
-      summary: "Manage your Move access for this business.",
-      status: "NOT_INSTALLED",
-      launchUrl: moveApplicationOrigin,
-    },
-  });
+      update: {
+        name: capability.name,
+        summary: capability.summary,
+        launchUrl: new URL(capability.applicationOrigin).origin,
+      },
+      create: {
+        businessId: business.id,
+        slug: capability.slug,
+        name: capability.name,
+        summary: capability.summary,
+        status: "NOT_INSTALLED",
+        launchUrl: new URL(capability.applicationOrigin).origin,
+      },
+    });
+  }
 }
 
 async function main() {

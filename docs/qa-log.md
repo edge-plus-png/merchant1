@@ -13,7 +13,8 @@ Verified outcomes:
 - The duplicate application identity column was removed; `capabilitySlug`
   remains the application key.
 - no application-definition or catalogue table is part of the model.
-- Move launches only by signed POST to the independent Move origin.
+- Applications launch with the generic signed ticket and continue through the
+  canonical `/apps/{slug}/...` gateway route to their independent origins.
 - Portal contains no embedded Move route, Move session, or Move runtime data.
 
 The corpus was searched after reconciliation for obsolete entitlement

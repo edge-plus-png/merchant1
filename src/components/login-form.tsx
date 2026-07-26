@@ -7,15 +7,18 @@ export function LoginForm({
   action = "/api/auth/login",
   hasError,
   identifier = "email",
+  returnState,
 }: {
   action?: string;
   hasError: boolean;
   identifier?: "email" | "username";
+  returnState?: string;
 }) {
   const [showPassword, setShowPassword] = useState(false);
 
   return (
     <form action={action} className="login-form" method="post">
+      {returnState ? <input name="state" type="hidden" value={returnState} /> : null}
       {hasError ? (
         <p className="form-error" role="alert">
           The {identifier === "username" ? "username" : "email address"} or

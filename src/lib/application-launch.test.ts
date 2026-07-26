@@ -14,6 +14,7 @@ const testPrivateKey = [
 
 const mocks = vi.hoisted(() => ({
   context: vi.fn(),
+  manifest: vi.fn(),
   listApplicationAccessSlugs: vi.fn(),
   listApplications: vi.fn(),
 }));
@@ -22,14 +23,18 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/lib/auth/session", () => ({
   getPortalContext: mocks.context,
 }));
+vi.mock("@/lib/application-routing/manifest", () => ({
+  fetchCapabilityManifest: mocks.manifest,
+}));
 vi.mock("@/lib/env", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/env")>();
   return {
     ...actual,
-    getMoveApplicationOrigin: () => "https://capability.example",
-    getMoveLaunchKeyId: () => "portal-capability-test-1",
-    getMoveLaunchPrivateKey: () => testPrivateKey,
-    getMoveLaunchTicketTtlSeconds: () => 45,
+    getApplicationReturnStateSecret: () => Buffer.alloc(32, 11),
+    getApplicationReturnStateTtlSeconds: () => 600,
+    getCapabilityLaunchKeyId: () => "portal-capability-test-1",
+    getCapabilityLaunchPrivateKey: () => testPrivateKey,
+    getCapabilityLaunchTicketTtlSeconds: () => 45,
   };
 });
 vi.mock("@/lib/portal-store", () => ({
@@ -94,6 +99,22 @@ const directOptions = {
   unauthenticated: "login",
   unavailable: "apps",
 } as const;
+const manifest = {
+  schemaVersion: 1 as const,
+  slug: "move",
+  name: "Move",
+  contractVersion: "1.0",
+  applicationOrigin: "https://capability.example",
+  environment: "staging" as const,
+  launchUrl: "https://capability.example/api/portal-launch",
+  healthUrl: "https://capability.example/api/health",
+  portalLaunchKeyPath: "/.well-known/getedge-portal-launch-key" as const,
+  portalRouting: {
+    version: 1 as const,
+    sessionCookie: { name: "capability_session" },
+    assetPrefix: "/_getedge/capability-assets/move",
+  },
+};
 
 function directRequest(slug = "move") {
   return new Request(`https://merchant.example/apps/${slug}`, {
@@ -107,6 +128,7 @@ describe("Portal application launcher", () => {
     mocks.context.mockResolvedValue(context);
     mocks.listApplicationAccessSlugs.mockResolvedValue(["move"]);
     mocks.listApplications.mockResolvedValue([installedApplication]);
+    mocks.manifest.mockResolvedValue(manifest);
   });
 
   it("launches an installed application for an entitled Owner", async () => {
@@ -122,12 +144,12 @@ describe("Portal application launcher", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.headers.get("referrer-policy")).toBe("no-referrer");
     expect(response.headers.get("content-security-policy")).toContain(
-      "form-action https://capability.example",
+      "form-action 'self'",
     );
     expect(body).toContain(
-      'action="https://capability.example/api/portal-launch" method="post"',
+      'action="/apps/move/__launch" method="post"',
     );
-    expect(body).toContain('<script defer src="/move-handover.js"></script>');
+    expect(body).toContain('<script defer src="/application-handover.js"></script>');
     expect(ticket).toBeTruthy();
     expect(body).not.toContain("?ticket=");
     expect(body).not.toContain("#ticket=");
@@ -215,12 +237,12 @@ describe("Portal application launcher", () => {
     );
 
     expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe(
-      "https://merchant.example/login",
-    );
+    const location = new URL(response.headers.get("location")!);
+    expect(location.pathname).toBe("/login");
+    expect(location.searchParams.get("state")).toBeTruthy();
   });
 
-  it("keeps unsupported future slugs on the neutral apps fallback", async () => {
+  it("launches a future capability using only its registry row and manifest", async () => {
     mocks.listApplicationAccessSlugs.mockResolvedValue(["events"]);
     mocks.listApplications.mockResolvedValue([
       {
@@ -229,6 +251,19 @@ describe("Portal application launcher", () => {
         slug: "events",
       },
     ]);
+    mocks.manifest.mockResolvedValue({
+      ...manifest,
+      slug: "events",
+      name: "Events",
+      applicationOrigin: "https://events.example",
+      launchUrl: "https://events.example/api/portal-launch",
+      healthUrl: "https://events.example/api/health",
+      portalRouting: {
+        ...manifest.portalRouting,
+        sessionCookie: { name: "events_session" },
+        assetPrefix: "/_getedge/capability-assets/events",
+      },
+    });
 
     const response = await launchPortalApplication(
       directRequest("events"),
@@ -236,14 +271,12 @@ describe("Portal application launcher", () => {
       directOptions,
     );
 
-    expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe("https://merchant.example/apps");
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain('action="/apps/events/__launch"');
   });
 
   it("does not disclose an environment configuration mismatch", async () => {
-    mocks.listApplications.mockResolvedValue([
-      { ...installedApplication, launchUrl: "https://untrusted.example" },
-    ]);
+    mocks.manifest.mockRejectedValue(new Error("invalid manifest"));
 
     const response = await launchPortalApplication(
       directRequest(),

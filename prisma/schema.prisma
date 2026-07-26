@@ -169,6 +169,15 @@ model PortalSession {
   @@index([expiresAt])
 }
 
+model ApplicationReturnStateNonce {
+  id         String   @id @default(cuid())
+  nonce      String   @unique @db.Uuid
+  expiresAt  DateTime
+  consumedAt DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
 model PortalCapabilityAccess {
   id             String             @id @default(cuid())
   businessId     String

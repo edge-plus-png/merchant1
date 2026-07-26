@@ -10,14 +10,23 @@ If, once several capabilities are all consuming structurally identical tickets f
 
 ## Ticket shape
 
+The protected header uses `alg: EdDSA`,
+`typ: GETEDGE-CAPABILITY+JWT`, and the Portal signing-key `kid`.
+
 | Field | Meaning |
 |---|---|
-| `issuer` | Fixed identifier for the issuing Merchant Portal deployment |
+| `issuer` | Fixed identifier `getedge-merchant-portal` |
 | `audience` | The capability slug this ticket is valid for (e.g. `move`) — a ticket issued for one capability must be rejected by any other |
-| `merchantId` | The merchant this session is for |
-| `merchantName` | Display name, for the capability's own UI — not authoritative, the capability should treat `merchantId` as the source of truth |
+| `portalOrigin` | Origin of the issuing Merchant Portal and its public-key endpoint |
+| `applicationOrigin` | Registered trusted origin of the receiving capability |
+| `merchant.id` | The merchant this session is for |
+| `merchant.name` | Display name for the capability UI; `merchant.id` remains authoritative |
 | `environment` | `staging` or `production` — a ticket issued for one must be rejected by a capability instance running in the other |
-| `initiatedBy` | Opaque Merchant Portal audit reference for the principal that requested launch. For an HQ-managed session this is the merchant-local HQ-session audit identifier, not an HQ application user identity. |
+| `initiatedBy` | Opaque Merchant Portal principal reference; Edge full-access uses the fixed value `edge-full-access` and sends no operator identity |
+| `entitlement.applicationId` | Merchant-local installation record identifier |
+| `entitlement.slug` | Registered capability slug; must equal `audience` |
+| `entitlement.installedAt` | Installation timestamp |
+| `issuedAt` | Absolute issue time |
 | `expiresAt` | Absolute expiry, short-lived (on the order of seconds, not minutes) |
 | `nonce` | Single-use identifier |
 
@@ -27,6 +36,8 @@ A capability must reject a launch ticket unless all of the following hold:
 
 - signature verifies against the issuing Merchant Portal deployment's current public key
 - `audience` matches this capability's own slug
+- `entitlement.slug` matches `audience`
+- `applicationOrigin` matches the capability manifest and actual request origin
 - `environment` matches which environment this capability instance is running in
 - `expiresAt` has not passed
 - `nonce` has not been seen before (replay protection — the capability must track consumed nonces for at least the ticket's maximum lifetime)
@@ -42,7 +53,10 @@ A ticket that fails any check is rejected outright. There is no partial trust an
 
 ## Claims, not interpretation
 
-Merchant Portal defines which claims it sends on the ticket — `merchantId`, `initiatedBy`, `environment`, and any others a given capability's launch actually requires. It does not, and must not, define what those claims mean inside the capability. A capability may treat `initiatedBy` as an audit string it never looks at again, or may map it to an internal role, or may ignore it entirely once its own session is created — that decision belongs to the capability, not to this document. Merchant Portal's contract ends at "here is a verified claim"; what the capability does with it is outside the contract.
+Every capability receives the same claims described above. There are no
+per-capability claim templates. The capability decides how to use verified
+merchant context after session creation; Portal does not prescribe its internal
+roles or product behavior.
 
 ## Public key discovery
 

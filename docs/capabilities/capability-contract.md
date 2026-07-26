@@ -49,5 +49,7 @@ Move is the first application using this process:
 - production origin: `https://move.getedgeportal.app`
 - launch endpoint: `/api/portal-launch`
 
-No Move route is embedded in Portal. Move sessions and runtime data remain in
-Move's own deployment.
+No capability route is embedded in the Portal application runtime. Canonical
+merchant URLs are routed by the separate stateless gateway described in
+[`portal-application-routing.md`](portal-application-routing.md). Move sessions
+and runtime data remain in Move's own deployment.
