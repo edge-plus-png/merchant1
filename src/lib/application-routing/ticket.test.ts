@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CapabilityManifest } from "@/lib/application-routing/manifest";
 import {
   createCapabilityLaunchTicket,
+  getCapabilityLaunchPublicKey,
   verifyCapabilityLaunchTicketSignature,
 } from "@/lib/application-routing/ticket";
 import type {
@@ -92,6 +93,10 @@ describe("generic capability launch ticket", () => {
       merchant: { id: "business-1", name: "Merchant" },
     });
     expect(payload!.expiresAt - payload!.issuedAt).toBe(45);
+  });
+
+  it("derives the published public key from the configured signing key", () => {
+    expect(getCapabilityLaunchPublicKey()).toBe(publicKey);
   });
 
   it("issues a fresh nonce and rejects signature tampering", () => {

@@ -1,23 +1,26 @@
-import { createPublicKey } from "node:crypto";
 import { NextResponse } from "next/server";
-import {
-  getCapabilityLaunchKeyId,
-  getCapabilityLaunchPrivateKey,
-} from "@/lib/env";
+import { getCapabilityLaunchPublicKey } from "@/lib/application-routing/ticket";
+import { getCapabilityLaunchKeyId } from "@/lib/env";
+import { requireRequestSurface } from "@/lib/surface";
 
 export const dynamic = "force-dynamic";
 
-export function GET() {
-  const publicKey = createPublicKey(getCapabilityLaunchPrivateKey())
-    .export({ format: "pem", type: "spki" })
-    .toString();
+export async function GET(request: Request) {
+  if (!requireRequestSurface(request, "MERCHANT")) {
+    return new NextResponse("Not Found", { status: 404 });
+  }
 
   return NextResponse.json(
     {
       algorithm: "Ed25519",
       keyId: getCapabilityLaunchKeyId(),
-      publicKey,
+      publicKey: getCapabilityLaunchPublicKey(),
     },
-    { headers: { "Cache-Control": "public, max-age=300" } },
+    {
+      headers: {
+        "Cache-Control": "no-store",
+        "X-Content-Type-Options": "nosniff",
+      },
+    },
   );
 }

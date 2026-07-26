@@ -1,4 +1,4 @@
-import { randomUUID, sign, verify } from "node:crypto";
+import { createPublicKey, randomUUID, sign, verify } from "node:crypto";
 import { z } from "zod";
 import {
   getCapabilityLaunchKeyId,
@@ -42,6 +42,12 @@ const launchPayloadSchema = z.object({
 export type CapabilityLaunchTicketPayload = z.infer<
   typeof launchPayloadSchema
 >;
+
+export function getCapabilityLaunchPublicKey() {
+  return createPublicKey(getCapabilityLaunchPrivateKey())
+    .export({ format: "pem", type: "spki" })
+    .toString();
+}
 
 function encodeJson(value: unknown) {
   return Buffer.from(JSON.stringify(value)).toString("base64url");
