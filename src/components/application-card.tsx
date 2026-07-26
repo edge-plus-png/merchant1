@@ -38,11 +38,12 @@ export function ApplicationCard({
             {installed ? "Installed" : "Not installed"}
           </span>
           {installed && application.launchUrl && canOpen ? (
-            <form action={`/api/portal/apps/${application.slug}/open`} method="post">
-              <button className="merchant-primary-button" type="submit">
-                Open {application.name}
-              </button>
-            </form>
+            <a
+              className="merchant-primary-button"
+              href={`/apps/${application.slug}`}
+            >
+              Open {application.name}
+            </a>
           ) : !installed && canInstall ? (
             <form action={`/api/portal/apps/${application.slug}/install`} method="post">
               <button className="merchant-primary-button" type="submit">
