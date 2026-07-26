@@ -9,6 +9,7 @@ describe("Move multi-zone proxy", () => {
 
   it("keeps the Portal-owned entry route inside Merchant Portal", () => {
     vi.stubEnv("MOVE_UPSTREAM_ORIGIN", "https://move-staging.getedgeportal.app");
+    vi.stubEnv("MOVE_PROXY_SECRET", "test-move-proxy-secret-that-is-long-enough");
     const response = proxy(
       new NextRequest("https://merchant.getedgeportal.app/apps/move"),
     );
@@ -19,6 +20,7 @@ describe("Move multi-zone proxy", () => {
 
   it("rewrites deeper paths to Move and never forwards Portal cookies", () => {
     vi.stubEnv("MOVE_UPSTREAM_ORIGIN", "https://move-staging.getedgeportal.app");
+    vi.stubEnv("MOVE_PROXY_SECRET", "test-move-proxy-secret-that-is-long-enough");
     const response = proxy(
       new NextRequest(
         "https://merchant.getedgeportal.app/apps/move/ops/catalogue?stage=products",
@@ -37,8 +39,13 @@ describe("Move multi-zone proxy", () => {
     expect(response.headers.get("x-middleware-request-cookie")).toBe(
       "counter_ops_session=move-secret",
     );
-    expect(response.headers.get("x-middleware-request-x-forwarded-host")).toBe(
-      "merchant.getedgeportal.app",
+    expect(
+      response.headers.get("x-middleware-request-x-getedge-move-public-origin"),
+    ).toBe("https://merchant.getedgeportal.app");
+    expect(
+      response.headers.get("x-middleware-request-x-getedge-move-proxy-secret"),
+    ).toBe(
+      "test-move-proxy-secret-that-is-long-enough",
     );
   });
 });
