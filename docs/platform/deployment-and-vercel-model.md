@@ -51,9 +51,7 @@ Each capability domain remains the independently deployed upstream. A merchant's
 browser-visible application routes are served through a unique Portal-owned zone
 such as `/apps/move`, using a secure external rewrite to that upstream. This keeps
 the user on the merchant domain while preserving independent deployments,
-databases, sessions, and release histories. The Portal-to-capability rewrite also
-authenticates its browser-visible origin assertion with a shared, server-only proxy
-secret because the rewrite replaces ordinary forwarded-host headers.
+databases, sessions, and release histories.
 
 ## Verification projects
 

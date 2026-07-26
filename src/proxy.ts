@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   getMoveApplicationUpstreamOrigin,
-  getMoveProxySecret,
   moveApplicationBasePath,
 } from "@/lib/env";
 
 const moveSessionCookieName = "counter_ops_session";
-const movePublicOriginHeader = "x-getedge-move-public-origin";
-const moveProxySecretHeader = "x-getedge-move-proxy-secret";
 
 function moveCookieHeader(cookieHeader: string | null) {
   if (!cookieHeader) return null;
@@ -37,10 +34,11 @@ export function proxy(request: NextRequest) {
   } else {
     requestHeaders.delete("cookie");
   }
-  requestHeaders.delete(movePublicOriginHeader);
-  requestHeaders.delete(moveProxySecretHeader);
-  requestHeaders.set(movePublicOriginHeader, request.nextUrl.origin);
-  requestHeaders.set(moveProxySecretHeader, getMoveProxySecret());
+  requestHeaders.set("x-forwarded-host", request.nextUrl.host);
+  requestHeaders.set(
+    "x-forwarded-proto",
+    request.nextUrl.protocol.replace(":", ""),
+  );
 
   return NextResponse.rewrite(upstreamUrl, {
     request: { headers: requestHeaders },

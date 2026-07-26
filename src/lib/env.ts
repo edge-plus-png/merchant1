@@ -135,10 +135,6 @@ export function getMoveApplicationUpstreamOrigin() {
   return origin;
 }
 
-export function getMoveProxySecret() {
-  return z.string().min(32).parse(process.env.MOVE_PROXY_SECRET);
-}
-
 export function parseMoveApplicationOrigin(value: string) {
   const url = new URL(value);
   const permitsLocalHttp =
