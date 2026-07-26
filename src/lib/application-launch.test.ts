@@ -26,7 +26,7 @@ vi.mock("@/lib/env", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/env")>();
   return {
     ...actual,
-    getMoveApplicationOrigin: () => "https://merchant.example",
+    getMoveApplicationOrigin: () => "https://capability.example",
     getMoveLaunchKeyId: () => "portal-capability-test-1",
     getMoveLaunchPrivateKey: () => testPrivateKey,
     getMoveLaunchTicketTtlSeconds: () => 45,
@@ -85,7 +85,7 @@ const installedApplication: MerchantApplicationRecord = {
   name: "Move",
   summary: "Merchant capability",
   status: "INSTALLED",
-  launchUrl: "https://merchant.example",
+  launchUrl: "https://capability.example",
   installedAt: now,
   createdAt: now,
   updatedAt: now,
@@ -122,10 +122,10 @@ describe("Portal application launcher", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.headers.get("referrer-policy")).toBe("no-referrer");
     expect(response.headers.get("content-security-policy")).toContain(
-      "form-action https://merchant.example",
+      "form-action https://capability.example",
     );
     expect(body).toContain(
-      'action="https://merchant.example/apps/move/api/portal-launch" method="post"',
+      'action="https://capability.example/api/portal-launch" method="post"',
     );
     expect(body).toContain('<script defer src="/move-handover.js"></script>');
     expect(ticket).toBeTruthy();
