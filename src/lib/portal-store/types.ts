@@ -9,6 +9,7 @@ import type {
   PortalRole,
   PortalSessionRecord,
   PortalUserInvitationRecord,
+  PortalUserSecurityAuditRecord,
   VatStatus,
 } from "@/lib/portal-types";
 import type { PortalActorRole } from "@/lib/auth/authorization";
@@ -63,10 +64,33 @@ export type CreateInvitationInput = {
   invitedByMembershipId: string | null;
   name: string;
   email: string;
+  username: string;
+  usernameNormalized: string;
   role: PortalRole;
   tokenHash: string;
   expiresAt: Date;
 };
+
+export type CreatePasswordResetInput = {
+  businessId: string;
+  actorMembershipId: string | null;
+  actorKey: string;
+  actorRole: PortalActorRole;
+  targetMembershipId: string;
+  tokenHash: string;
+  expiresAt: Date;
+  rateWindowStartedAt: Date;
+};
+
+export type PasswordResetCreationResult =
+  | { status: "created"; invitation: PortalUserInvitationRecord }
+  | { status: "forbidden" | "not_found" | "rate_limited" };
+
+export type UsernameMigrationResult =
+  | "completed"
+  | "already_completed"
+  | "invalid"
+  | "pending_invitation_conflict";
 
 export type MembershipMutationResult =
   | "updated"
@@ -85,7 +109,7 @@ export type ApplicationInstallationResult =
 
 export interface PortalStore {
   findLoginMembership(
-    email: string,
+    identifier: string,
     businessId?: string,
   ): Promise<MembershipRecord | null>;
   createSession(input: {
@@ -115,6 +139,12 @@ export interface PortalStore {
   createInvitation(
     input: CreateInvitationInput,
   ): Promise<PortalUserInvitationRecord | "already_member" | "already_invited">;
+  createPasswordReset(
+    input: CreatePasswordResetInput,
+  ): Promise<PasswordResetCreationResult>;
+  listUserSecurityAudits(
+    businessId: string,
+  ): Promise<PortalUserSecurityAuditRecord[]>;
   findInvitation(
     tokenHash: string,
   ): Promise<PortalUserInvitationRecord | null>;
@@ -122,6 +152,10 @@ export interface PortalStore {
     tokenHash: string;
     passwordHash: string;
   }): Promise<"accepted" | "invalid" | "already_member">;
+  completeUsernameMigration(input: {
+    businessId: string;
+    assignments: Array<{ membershipId: string; username: string; usernameNormalized: string }>;
+  }): Promise<UsernameMigrationResult>;
   revokeInvitation(input: {
     businessId: string;
     invitationId: string;

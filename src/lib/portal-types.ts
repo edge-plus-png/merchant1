@@ -1,4 +1,5 @@
-export type PortalRole = "OWNER" | "ADMIN" | "MANAGER" | "USER";
+export type PortalRole = "OWNER" | "ADMIN" | "MANAGER" | "USER" | "LITE";
+export type PortalUserInvitationPurpose = "INVITE" | "PASSWORD_RESET";
 export type PortalUserStatus = "ACTIVE" | "DISABLED";
 export type VatStatus = "NOT_REGISTERED" | "PENDING" | "REGISTERED";
 export type MerchantApplicationStatus = "NOT_INSTALLED" | "INSTALLED";
@@ -38,6 +39,7 @@ export type BusinessRecord = {
   status: MerchantStatus;
   timezone: string;
   currency: string;
+  usernameLoginEnabledAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -46,6 +48,8 @@ export type MembershipRecord = {
   id: string;
   role: PortalRole;
   isActive: boolean;
+  username?: string | null;
+  usernameNormalized?: string | null;
   user: PortalUserRecord;
   business: BusinessRecord;
 };
@@ -61,6 +65,7 @@ export type MerchantUserRecord = {
   membershipId: string;
   name: string;
   email: string;
+  username?: string | null;
   role: PortalRole;
   isActive: boolean;
   isPrimaryOwner: boolean;
@@ -73,10 +78,22 @@ export type PortalUserInvitationRecord = {
   businessId: string;
   name: string;
   email: string;
+  username?: string | null;
   role: PortalRole;
+  purpose?: PortalUserInvitationPurpose;
+  targetMembershipId?: string | null;
   expiresAt: Date;
   acceptedAt: Date | null;
   revokedAt: Date | null;
+  createdAt: Date;
+};
+
+export type PortalUserSecurityAuditRecord = {
+  id: string;
+  businessId: string;
+  actorMembershipId: string;
+  targetMembershipId: string;
+  action: "PASSWORD_RESET_REQUESTED";
   createdAt: Date;
 };
 

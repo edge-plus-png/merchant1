@@ -12,6 +12,7 @@ const roleLabels = {
   ADMIN: "Admin",
   MANAGER: "Manager",
   USER: "User",
+  LITE: "Lite",
 } as const;
 
 export default async function AcceptInvitationPage({
@@ -38,11 +39,19 @@ export default async function AcceptInvitationPage({
           {invitation ? (
             <>
               <div className="page-heading compact-heading">
-                <h1>Join the team</h1>
-                <p>
-                  You&apos;ve been invited as{" "}
-                  <strong>{roleLabels[invitation.role]}</strong>.
-                </p>
+                <h1>
+                  {invitation.purpose === "PASSWORD_RESET"
+                    ? "Reset your password"
+                    : "Join the team"}
+                </h1>
+                {invitation.purpose === "PASSWORD_RESET" ? (
+                  <p>Create a new password for your merchant account.</p>
+                ) : (
+                  <p>
+                    You&apos;ve been invited as{" "}
+                    <strong>{roleLabels[invitation.role]}</strong>.
+                  </p>
+                )}
               </div>
               <dl className="invitation-details">
                 <div>
@@ -87,7 +96,9 @@ export default async function AcceptInvitationPage({
                 />
                 <p className="field-help">Use at least 12 characters.</p>
                 <button className="primary-button form-submit" type="submit">
-                  Accept invitation
+                  {invitation.purpose === "PASSWORD_RESET"
+                    ? "Update password"
+                    : "Accept invitation"}
                 </button>
               </form>
             </>
@@ -96,7 +107,7 @@ export default async function AcceptInvitationPage({
               <h1>Invitation unavailable</h1>
               <p>
                 This link has expired, has already been used, or was revoked.
-                Ask an Owner or Admin for a new invitation.
+                Ask an authorised team member for a new link.
               </p>
             </div>
           )}

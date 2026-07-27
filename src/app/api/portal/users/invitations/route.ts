@@ -4,13 +4,21 @@ import { z } from "zod";
 import { canManageUsers } from "@/lib/auth/authorization";
 import { isSameOriginRequest } from "@/lib/auth/csrf";
 import { getPortalContext, hashSessionToken } from "@/lib/auth/session";
+import { normalizeUsername, usernameSchema } from "@/lib/auth/username";
 import { getPortalStore } from "@/lib/portal-store";
 import { requireRequestSurface } from "@/lib/surface";
 
 const invitationSchema = z.object({
+  purpose: z.literal("INVITE").optional().default("INVITE"),
   name: z.string().trim().min(2).max(160),
   email: z.string().trim().toLowerCase().email().max(254),
-  role: z.enum(["OWNER", "ADMIN", "MANAGER", "USER"]),
+  username: usernameSchema,
+  role: z.enum(["OWNER", "ADMIN", "MANAGER", "USER", "LITE"]),
+});
+
+const resetSchema = z.object({
+  purpose: z.literal("PASSWORD_RESET"),
+  membershipId: z.string().min(1).max(160),
 });
 
 export async function POST(request: Request) {
@@ -24,19 +32,65 @@ export async function POST(request: Request) {
 
   const context = await getPortalContext();
 
-  if (
-    !context || !canManageUsers(context.role)
-  ) {
+  if (!context || context.kind === "HQ_SUPPORT") {
     return NextResponse.json({ error: "Forbidden." }, { status: 403 });
   }
 
-  const parsed = invitationSchema.safeParse(
-    Object.fromEntries((await request.formData()).entries()),
-  );
+  const fields = Object.fromEntries((await request.formData()).entries());
+
+  if (fields.purpose === "PASSWORD_RESET") {
+    const parsedReset = resetSchema.safeParse(fields);
+    if (!parsedReset.success) {
+      return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+    }
+
+    const token = randomBytes(32).toString("base64url");
+    const result = await getPortalStore().createPasswordReset({
+      businessId: context.business.id,
+      actorMembershipId: context.membershipId,
+      actorKey:
+        context.kind === "EDGE"
+          ? `edge:${context.user.id}`
+          : `membership:${context.membershipId}`,
+      actorRole: context.role,
+      targetMembershipId: parsedReset.data.membershipId,
+      tokenHash: hashSessionToken(token),
+      expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+      rateWindowStartedAt: new Date(Date.now() - 15 * 60 * 1000),
+    });
+
+    if (result.status !== "created") {
+      return NextResponse.json(
+        {
+          error:
+            result.status === "rate_limited"
+              ? "Too many reset links have been created. Try again later."
+              : "The reset link could not be created.",
+        },
+        { status: result.status === "rate_limited" ? 429 : 403 },
+      );
+    }
+
+    return NextResponse.json(
+      {
+        resetUrl: new URL(
+          `/invite/${encodeURIComponent(token)}`,
+          request.headers.get("origin") ?? request.url,
+        ).toString(),
+      },
+      { status: 201, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+
+  if (!canManageUsers(context.role)) {
+    return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+  }
+
+  const parsed = invitationSchema.safeParse(fields);
 
   if (!parsed.success) {
     return NextResponse.json(
-      { error: "Check the name, email, and role." },
+      { error: "Check the name, username, email, and role." },
       { status: 400 },
     );
   }
@@ -58,6 +112,8 @@ export async function POST(request: Request) {
     invitedByMembershipId: context.membershipId,
     name: parsed.data.name,
     email: parsed.data.email,
+    username: parsed.data.username.trim(),
+    usernameNormalized: normalizeUsername(parsed.data.username),
     role: parsed.data.role,
     tokenHash: hashSessionToken(token),
     expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
@@ -72,7 +128,7 @@ export async function POST(request: Request) {
 
   if (invitation === "already_invited") {
     return NextResponse.json(
-      { error: "An active invitation already exists for that email." },
+      { error: "That email or username is already in use." },
       { status: 409 },
     );
   }

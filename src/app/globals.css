@@ -2900,6 +2900,42 @@ body {
   gap: 18px;
 }
 
+.username-migration-form {
+  display: grid;
+  margin-top: 24px;
+  gap: 18px;
+}
+
+.username-migration-list {
+  display: grid;
+  gap: 12px;
+}
+
+.username-migration-list label {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(220px, 0.8fr);
+  align-items: center;
+  gap: 18px;
+}
+
+.username-migration-list label > span {
+  display: grid;
+  gap: 3px;
+}
+
+.username-migration-list small {
+  color: var(--edge-muted);
+}
+
+.username-migration-list input {
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid #d8e0ec;
+  border-radius: 14px;
+  background: #f8fafc;
+  font: inherit;
+}
+
 .legacy-form-message {
   margin: 0 !important;
 }
@@ -2968,6 +3004,17 @@ body {
 .invitation-link-panel span {
   color: var(--edge-muted);
   font-size: 0.72rem;
+}
+
+.password-reset-link-panel {
+  margin-top: 0;
+}
+
+.user-action-stack {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .users-panel {
@@ -3092,6 +3139,7 @@ body {
 
   .user-summary,
   .legacy-invite-grid,
+  .username-migration-list label,
   .business-form-grid,
   .role-guidance {
     grid-template-columns: 1fr;

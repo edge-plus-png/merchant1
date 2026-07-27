@@ -2,13 +2,17 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import type { PortalActorRole } from "@/lib/auth/authorization";
+import {
+  canResetPassword,
+  type PortalActorRole,
+} from "@/lib/auth/authorization";
 import type { PortalRole } from "@/lib/portal-types";
 
 type UserRow = {
   membershipId: string;
   name: string;
   email: string;
+  username: string | null;
   role: PortalRole;
   isActive: boolean;
   isActiveThisWeek: boolean;
@@ -20,6 +24,7 @@ type InvitationRow = {
   id: string;
   name: string;
   email: string;
+  username: string | null;
   role: PortalRole;
   expires: string;
 };
@@ -29,6 +34,7 @@ const roleLabels: Record<PortalRole, string> = {
   ADMIN: "Admin",
   MANAGER: "Manager",
   USER: "User",
+  LITE: "Lite",
 };
 
 const roleDescriptions: Record<PortalRole, string> = {
@@ -36,6 +42,7 @@ const roleDescriptions: Record<PortalRole, string> = {
   ADMIN: "Can manage business information and users.",
   MANAGER: "Can view the team, business information, and applications.",
   USER: "Standard view access to this merchant workspace.",
+  LITE: "Limited view access to this merchant workspace.",
 };
 
 export function UserManagement({
@@ -44,12 +51,18 @@ export function UserManagement({
   canManage,
   actorRole,
   businessName,
+  usernameLoginEnabled,
+  canMigrateUsernames,
+  usernameSuggestions,
 }: {
   users: UserRow[];
   invitations: InvitationRow[];
   canManage: boolean;
   actorRole: PortalActorRole;
   businessName: string;
+  usernameLoginEnabled: boolean;
+  canMigrateUsernames: boolean;
+  usernameSuggestions: Array<{ membershipId: string; username: string }>;
 }) {
   const router = useRouter();
   const [selectedRole, setSelectedRole] = useState<PortalRole>("USER");
@@ -57,6 +70,17 @@ export function UserManagement({
   const [inviteError, setInviteError] = useState("");
   const [invitationUrl, setInvitationUrl] = useState("");
   const [copied, setCopied] = useState(false);
+  const [resetUrl, setResetUrl] = useState("");
+  const [resetTarget, setResetTarget] = useState("");
+  const [resetError, setResetError] = useState("");
+  const [resettingMembershipId, setResettingMembershipId] = useState("");
+  const [migrationError, setMigrationError] = useState("");
+  const [migrating, setMigrating] = useState(false);
+  const [usernames, setUsernames] = useState<Record<string, string>>(
+    Object.fromEntries(
+      usernameSuggestions.map((item) => [item.membershipId, item.username]),
+    ),
+  );
 
   async function createInvitation(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -94,14 +118,115 @@ export function UserManagement({
     setCopied(true);
   }
 
+  async function createPasswordReset(user: UserRow) {
+    setResetError("");
+    setResetUrl("");
+    setResetTarget("");
+    setResettingMembershipId(user.membershipId);
+    const fields = new FormData();
+    fields.set("purpose", "PASSWORD_RESET");
+    fields.set("membershipId", user.membershipId);
+    const response = await fetch("/api/portal/users/invitations", {
+      body: fields,
+      method: "POST",
+    });
+    const result = (await response.json()) as { error?: string; resetUrl?: string };
+    setResettingMembershipId("");
+    if (!response.ok || !result.resetUrl) {
+      setResetError(result.error ?? "The reset link could not be created.");
+      return;
+    }
+    setResetUrl(result.resetUrl);
+    setResetTarget(user.name);
+  }
+
+  async function copyResetLink() {
+    await navigator.clipboard.writeText(resetUrl);
+  }
+
+  async function completeUsernameMigration(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setMigrating(true);
+    setMigrationError("");
+    const response = await fetch("/api/portal/users/usernames", {
+      body: JSON.stringify({
+        assignments: users.map((user) => ({
+          membershipId: user.membershipId,
+          username: usernames[user.membershipId] ?? "",
+        })),
+      }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    });
+    const result = (await response.json()) as { error?: string };
+    setMigrating(false);
+    if (!response.ok) {
+      setMigrationError(result.error ?? "Username login could not be enabled.");
+      return;
+    }
+    router.refresh();
+  }
+
   const activeCount = users.filter((user) => user.isActive).length;
   const elevatedCount = users.filter(
     (user) => user.isActive && (user.role === "OWNER" || user.role === "ADMIN"),
   ).length;
   const activeThisWeek = users.filter((user) => user.isActiveThisWeek).length;
+  const showActions =
+    canManage || users.some((user) => canResetPassword(actorRole, user.role));
 
   return (
     <div className="legacy-user-management">
+      {!usernameLoginEnabled && canMigrateUsernames ? (
+        <section className="legacy-surface username-migration-panel">
+          <div className="legacy-section-heading">
+            <h2>Enable username login</h2>
+            <p>
+              Review every username before switching this merchant from email to
+              username-only login.
+            </p>
+          </div>
+          <form className="username-migration-form" onSubmit={completeUsernameMigration}>
+            {migrationError ? (
+              <p className="form-error legacy-form-message" role="alert">
+                {migrationError}
+              </p>
+            ) : null}
+            <div className="username-migration-list">
+              {users.map((user) => (
+                <label key={user.membershipId}>
+                  <span>
+                    <strong>{user.name}</strong>
+                    <small>{user.email}</small>
+                  </span>
+                  <input
+                    autoCapitalize="none"
+                    autoComplete="off"
+                    maxLength={64}
+                    minLength={3}
+                    onChange={(event) =>
+                      setUsernames((current) => ({
+                        ...current,
+                        [user.membershipId]: event.target.value,
+                      }))
+                    }
+                    pattern="[A-Za-z0-9_-]+"
+                    required
+                    value={usernames[user.membershipId] ?? ""}
+                  />
+                </label>
+              ))}
+            </div>
+            <p className="field-help">
+              Confirming disables email login immediately for every account.
+            </p>
+            <button className="merchant-primary-button" disabled={migrating} type="submit">
+              {migrating ? "Enabling…" : "Confirm usernames and enable login"}
+            </button>
+          </form>
+        </section>
+      ) : null}
+
       <section className="user-summary" aria-label="User summary">
         <div>
           <span>Total users</span>
@@ -141,6 +266,18 @@ export function UserManagement({
               <label>
                 <span>Full name</span>
                 <input autoComplete="name" maxLength={160} name="name" required />
+              </label>
+              <label>
+                <span>Username</span>
+                <input
+                  autoCapitalize="none"
+                  autoComplete="off"
+                  maxLength={64}
+                  minLength={3}
+                  name="username"
+                  pattern="[A-Za-z0-9_-]+"
+                  required
+                />
               </label>
               <label>
                 <span>Email</span>
@@ -207,7 +344,26 @@ export function UserManagement({
               </button>
             </div>
           ) : null}
+
         </section>
+      ) : null}
+
+      {resetError ? (
+        <p className="form-error legacy-form-message" role="alert">
+          {resetError}
+        </p>
+      ) : null}
+      {resetUrl ? (
+        <div className="invitation-link-panel password-reset-link-panel" role="status">
+          <div>
+            <strong>Password reset link for {resetTarget}</strong>
+            <span>Share this secure, single-use link. It expires in 15 minutes.</span>
+          </div>
+          <input aria-label="Password reset link" readOnly value={resetUrl} />
+          <button className="table-action-button" onClick={copyResetLink} type="button">
+            Copy link
+          </button>
+        </div>
       ) : null}
 
       <section className="legacy-surface users-panel">
@@ -225,7 +381,7 @@ export function UserManagement({
                 <th scope="col">Role</th>
                 <th scope="col">Status</th>
                 <th scope="col">Last active</th>
-                {canManage ? <th scope="col">Actions</th> : null}
+                {showActions ? <th scope="col">Actions</th> : null}
               </tr>
             </thead>
             <tbody>
@@ -244,7 +400,10 @@ export function UserManagement({
                     <td data-label="User">
                       <div className="legacy-user-cell">
                         <strong>{user.name}</strong>
-                        <span>{user.email}</span>
+                        <span>
+                          {user.username ? `${user.username} · ` : ""}
+                          {user.email}
+                        </span>
                       </div>
                     </td>
                     <td data-label="Merchant">{businessName}</td>
@@ -291,26 +450,40 @@ export function UserManagement({
                       </span>
                     </td>
                     <td data-label="Last active">{user.lastActive}</td>
-                    {canManage ? (
+                    {showActions ? (
                       <td data-label="Actions">
-                        {user.isPrimaryOwner ? (
-                          <span className="protected-copy">Protected</span>
-                        ) : (
-                          <form
-                            action={`/api/portal/users/${user.membershipId}`}
-                            method="post"
-                          >
-                            <input name="action" type="hidden" value="active" />
-                            <input
-                              name="isActive"
-                              type="hidden"
-                              value={user.isActive ? "false" : "true"}
-                            />
-                            <button className="table-action-button" type="submit">
-                              {user.isActive ? "Pause" : "Reactivate"}
+                        <div className="user-action-stack">
+                          {canManage && !user.isPrimaryOwner ? (
+                            <form
+                              action={`/api/portal/users/${user.membershipId}`}
+                              method="post"
+                            >
+                              <input name="action" type="hidden" value="active" />
+                              <input
+                                name="isActive"
+                                type="hidden"
+                                value={user.isActive ? "false" : "true"}
+                              />
+                              <button className="table-action-button" type="submit">
+                                {user.isActive ? "Pause" : "Reactivate"}
+                              </button>
+                            </form>
+                          ) : canManage ? (
+                            <span className="protected-copy">Protected</span>
+                          ) : null}
+                          {canResetPassword(actorRole, user.role) ? (
+                            <button
+                              className="table-action-button"
+                              disabled={resettingMembershipId === user.membershipId}
+                              onClick={() => createPasswordReset(user)}
+                              type="button"
+                            >
+                              {resettingMembershipId === user.membershipId
+                                ? "Creating…"
+                                : "Reset password"}
                             </button>
-                          </form>
-                        )}
+                          ) : null}
+                        </div>
                       </td>
                     ) : null}
                   </tr>
@@ -321,7 +494,10 @@ export function UserManagement({
                   <td data-label="User">
                     <div className="legacy-user-cell">
                       <strong>{invitation.name}</strong>
-                      <span>{invitation.email}</span>
+                      <span>
+                        {invitation.username ? `${invitation.username} · ` : ""}
+                        {invitation.email}
+                      </span>
                     </div>
                   </td>
                   <td data-label="Merchant">{businessName}</td>
@@ -334,23 +510,28 @@ export function UserManagement({
                     <span className="status-badge status-pending">Invited</span>
                   </td>
                   <td data-label="Last active">Expires {invitation.expires}</td>
-                  {canManage ? (
+                  {showActions ? (
                     <td data-label="Actions">
-                      <form
-                        action={`/api/portal/users/invitations/${invitation.id}`}
-                        method="post"
-                      >
-                        <button className="table-action-button" type="submit">
-                          Revoke
-                        </button>
-                      </form>
+                      {canManage ? (
+                        <form
+                          action={`/api/portal/users/invitations/${invitation.id}`}
+                          method="post"
+                        >
+                          <button className="table-action-button" type="submit">
+                            Revoke
+                          </button>
+                        </form>
+                      ) : null}
                     </td>
                   ) : null}
                 </tr>
               ))}
               {users.length === 0 && invitations.length === 0 ? (
                 <tr>
-                  <td className="empty-table-cell" colSpan={canManage ? 6 : 5}>
+                  <td
+                    className="empty-table-cell"
+                    colSpan={showActions ? 6 : 5}
+                  >
                     No merchant users have been added yet.
                   </td>
                 </tr>

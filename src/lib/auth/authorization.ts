@@ -22,6 +22,21 @@ export function canManageUsers(role: PortalActorRole) {
   return role === "OWNER" || role === "ADMIN" || role === "EDGE";
 }
 
+export function canResetPassword(
+  actorRole: PortalActorRole,
+  targetRole: PortalRole,
+) {
+  if (actorRole === "EDGE" || actorRole === "OWNER") return true;
+  if (actorRole === "ADMIN" || actorRole === "MANAGER") {
+    return targetRole !== "OWNER";
+  }
+  return false;
+}
+
+export function canCompleteUsernameMigration(role: PortalActorRole) {
+  return role === "OWNER" || role === "ADMIN";
+}
+
 export function canInstallApplication(role: PortalActorRole) {
   return role === "OWNER" || role === "ADMIN" || role === "EDGE";
 }

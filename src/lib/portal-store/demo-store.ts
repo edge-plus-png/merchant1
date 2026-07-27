@@ -1,4 +1,6 @@
 import { hashPassword } from "@/lib/auth/password";
+import { canResetPassword } from "@/lib/auth/authorization";
+import { normalizeUsername, usernameSchema } from "@/lib/auth/username";
 import type { PortalStore } from "@/lib/portal-store/types";
 import type {
   BusinessRecord,
@@ -12,6 +14,7 @@ import type {
   MembershipRecord,
   PortalSessionRecord,
   PortalUserInvitationRecord,
+  PortalUserSecurityAuditRecord,
 } from "@/lib/portal-types";
 
 export type DemoState = {
@@ -20,6 +23,8 @@ export type DemoState = {
   invitations: Array<
     PortalUserInvitationRecord & {
       invitedByMembershipId: string | null;
+      requestedByKey: string | null;
+      usernameNormalized: string | null;
       tokenHash: string;
     }
   >;
@@ -51,6 +56,7 @@ export type DemoState = {
   >;
   hqAccessAudits: HQAccessAuditRecord[];
   hqMerchantStatusAudits: HQMerchantStatusAuditRecord[];
+  userSecurityAudits: PortalUserSecurityAuditRecord[];
 };
 
 const demoGlobal = globalThis as typeof globalThis & {
@@ -74,6 +80,7 @@ async function createDemoState(): Promise<DemoState> {
     consumedTicketNonces: new Map(),
     hqAccessAudits: [],
     hqMerchantStatusAudits: [],
+    userSecurityAudits: [],
   };
 }
 
@@ -87,14 +94,16 @@ export function resetDemoState() {
 }
 
 export const demoPortalStore: PortalStore = {
-  async findLoginMembership(email, businessId) {
+  async findLoginMembership(identifier, businessId) {
     const state = await getDemoState();
     return (
       state.memberships.find(
         (membership) =>
           membership.isActive &&
           membership.user.status === "ACTIVE" &&
-          membership.user.email === email &&
+          (membership.business.usernameLoginEnabledAt
+            ? membership.usernameNormalized === normalizeUsername(identifier)
+            : membership.user.email === identifier.trim().toLowerCase()) &&
           (!businessId || membership.business.id === businessId),
       ) ?? null
     );
@@ -144,6 +153,8 @@ export const demoPortalStore: PortalStore = {
         id: `membership_owner_${business.id}`,
         role: "OWNER",
         isActive: true,
+        username: null,
+        usernameNormalized: null,
         business,
         user: {
           id: `portal_user_owner_${business.id}`,
@@ -311,6 +322,7 @@ export const demoPortalStore: PortalStore = {
         membershipId: membership.id,
         name: membership.user.name,
         email: membership.user.email,
+        username: membership.username,
         role: membership.role,
         isActive:
           membership.isActive && membership.user.status === "ACTIVE",
@@ -327,6 +339,7 @@ export const demoPortalStore: PortalStore = {
       .filter(
         (invitation) =>
           invitation.businessId === businessId &&
+          invitation.purpose === "INVITE" &&
           !invitation.acceptedAt &&
           !invitation.revokedAt &&
           invitation.expiresAt.getTime() > Date.now(),
@@ -341,7 +354,8 @@ export const demoPortalStore: PortalStore = {
       state.memberships.some(
         (membership) =>
           membership.business.id === input.businessId &&
-          membership.user.email === input.email,
+          (membership.user.email === input.email ||
+            membership.usernameNormalized === input.usernameNormalized),
       )
     ) {
       return "already_member";
@@ -351,7 +365,9 @@ export const demoPortalStore: PortalStore = {
       state.invitations.some(
         (invitation) =>
           invitation.businessId === input.businessId &&
-          invitation.email === input.email &&
+          invitation.purpose === "INVITE" &&
+          (invitation.email === input.email ||
+            invitation.usernameNormalized === input.usernameNormalized) &&
           !invitation.acceptedAt &&
           !invitation.revokedAt &&
           invitation.expiresAt.getTime() > Date.now(),
@@ -366,7 +382,12 @@ export const demoPortalStore: PortalStore = {
       invitedByMembershipId: input.invitedByMembershipId,
       name: input.name,
       email: input.email,
+      username: input.username,
+      usernameNormalized: input.usernameNormalized,
       role: input.role,
+      purpose: "INVITE" as const,
+      targetMembershipId: null,
+      requestedByKey: null,
       tokenHash: input.tokenHash,
       expiresAt: input.expiresAt,
       acceptedAt: null,
@@ -375,6 +396,100 @@ export const demoPortalStore: PortalStore = {
     };
     state.invitations.push(invitation);
     return invitation;
+  },
+
+  async createPasswordReset(input) {
+    const state = await getDemoState();
+    const target = state.memberships.find(
+      (membership) =>
+        membership.id === input.targetMembershipId &&
+        membership.business.id === input.businessId,
+    );
+    if (!target) return { status: "not_found" };
+    if (!canResetPassword(input.actorRole, target.role)) {
+      return { status: "forbidden" };
+    }
+    if (
+      input.actorRole !== "EDGE" &&
+      !state.memberships.some(
+        (membership) =>
+          membership.id === input.actorMembershipId &&
+          membership.business.id === input.businessId &&
+          membership.isActive,
+      )
+    ) {
+      return { status: "forbidden" };
+    }
+
+    const actorRequests = state.invitations.filter(
+      (invitation) =>
+        invitation.purpose === "PASSWORD_RESET" &&
+        invitation.requestedByKey === input.actorKey &&
+        invitation.createdAt >= input.rateWindowStartedAt,
+    ).length;
+    const targetRequests = state.invitations.filter(
+      (invitation) =>
+        invitation.purpose === "PASSWORD_RESET" &&
+        invitation.targetMembershipId === target.id &&
+        invitation.createdAt >= input.rateWindowStartedAt,
+    ).length;
+    if (actorRequests >= 3 || targetRequests >= 3) {
+      return { status: "rate_limited" };
+    }
+
+    for (const invitation of state.invitations) {
+      if (
+        invitation.purpose === "PASSWORD_RESET" &&
+        invitation.targetMembershipId === target.id &&
+        !invitation.acceptedAt &&
+        !invitation.revokedAt
+      ) {
+        invitation.revokedAt = new Date();
+      }
+    }
+
+    const invitation = {
+      id: `password_reset_${crypto.randomUUID()}`,
+      businessId: input.businessId,
+      invitedByMembershipId: input.actorMembershipId,
+      targetMembershipId: target.id,
+      requestedByKey: input.actorKey,
+      name: target.user.name,
+      email: target.user.email,
+      username: null,
+      usernameNormalized: null,
+      role: target.role,
+      purpose: "PASSWORD_RESET" as const,
+      tokenHash: input.tokenHash,
+      expiresAt: input.expiresAt,
+      acceptedAt: null,
+      revokedAt: null,
+      createdAt: new Date(),
+    };
+    state.invitations.push(invitation);
+
+    for (const [tokenHash, session] of state.sessions) {
+      if (session.membership.id === target.id) state.sessions.delete(tokenHash);
+    }
+
+    if (input.actorRole !== "EDGE" && input.actorMembershipId) {
+      state.userSecurityAudits.push({
+        id: `user_security_audit_${crypto.randomUUID()}`,
+        businessId: input.businessId,
+        actorMembershipId: input.actorMembershipId,
+        targetMembershipId: target.id,
+        action: "PASSWORD_RESET_REQUESTED",
+        createdAt: new Date(),
+      });
+    }
+    return { status: "created", invitation };
+  },
+
+  async listUserSecurityAudits(businessId) {
+    const state = await getDemoState();
+    return state.userSecurityAudits.filter(
+      (audit) => audit.businessId === businessId,
+    );
   },
 
   async findInvitation(tokenHash) {
@@ -405,6 +520,23 @@ export const demoPortalStore: PortalStore = {
       return "invalid";
     }
 
+    if (invitation.purpose === "PASSWORD_RESET") {
+      const target = state.memberships.find(
+        (membership) =>
+          membership.id === invitation.targetMembershipId &&
+          membership.business.id === invitation.businessId &&
+          membership.user.email === invitation.email,
+      );
+      if (!target) return "invalid";
+      target.user.passwordHash = passwordHash;
+      target.user.status = "ACTIVE";
+      for (const [sessionToken, session] of state.sessions) {
+        if (session.membership.id === target.id) state.sessions.delete(sessionToken);
+      }
+      invitation.acceptedAt = new Date();
+      return "accepted";
+    }
+
     if (
       state.memberships.some(
         (membership) =>
@@ -420,6 +552,22 @@ export const demoPortalStore: PortalStore = {
     );
     if (!business) {
       return "invalid";
+    }
+    if (
+      business.usernameLoginEnabledAt &&
+      (!invitation.username || !invitation.usernameNormalized)
+    ) {
+      return "invalid";
+    }
+    if (
+      invitation.usernameNormalized &&
+      state.memberships.some(
+        (membership) =>
+          membership.business.id === invitation.businessId &&
+          membership.usernameNormalized === invitation.usernameNormalized,
+      )
+    ) {
+      return "already_member";
     }
 
     let user = state.memberships
@@ -440,11 +588,71 @@ export const demoPortalStore: PortalStore = {
       id: `membership_${crypto.randomUUID()}`,
       role: invitation.role,
       isActive: true,
+      username: invitation.username,
+      usernameNormalized: invitation.usernameNormalized,
       user,
       business,
     });
     invitation.acceptedAt = new Date();
     return "accepted";
+  },
+
+  async completeUsernameMigration({ businessId, assignments }) {
+    const state = await getDemoState();
+    const business = state.businesses.find((item) => item.id === businessId);
+    if (!business) return "invalid";
+    if (business.usernameLoginEnabledAt) return "already_completed";
+
+    const memberships = state.memberships.filter(
+      (membership) => membership.business.id === businessId,
+    );
+    const pendingInvitations = state.invitations.filter(
+      (invitation) =>
+        invitation.businessId === businessId &&
+        invitation.purpose === "INVITE" &&
+        !invitation.acceptedAt &&
+        !invitation.revokedAt &&
+        invitation.expiresAt > new Date(),
+    );
+    if (pendingInvitations.some((item) => !item.usernameNormalized)) {
+      return "pending_invitation_conflict";
+    }
+
+    const expectedIds = new Set(memberships.map((membership) => membership.id));
+    const reserved = new Set(
+      pendingInvitations.flatMap((item) =>
+        item.usernameNormalized ? [item.usernameNormalized] : [],
+      ),
+    );
+    const normalized = new Set<string>();
+    if (
+      assignments.length !== memberships.length ||
+      assignments.some((assignment) => {
+        const canonical = normalizeUsername(assignment.username);
+        const invalid =
+          !expectedIds.delete(assignment.membershipId) ||
+          !usernameSchema.safeParse(assignment.username).success ||
+          assignment.usernameNormalized !== canonical ||
+          normalized.has(canonical) ||
+          reserved.has(canonical);
+        normalized.add(canonical);
+        return invalid;
+      }) ||
+      expectedIds.size !== 0
+    ) {
+      return "invalid";
+    }
+
+    for (const assignment of assignments) {
+      const membership = memberships.find(
+        (item) => item.id === assignment.membershipId,
+      );
+      if (!membership) return "invalid";
+      membership.username = assignment.username.trim();
+      membership.usernameNormalized = assignment.usernameNormalized;
+    }
+    business.usernameLoginEnabledAt = new Date();
+    return "completed";
   },
 
   async revokeInvitation({ businessId, invitationId }) {
@@ -453,6 +661,7 @@ export const demoPortalStore: PortalStore = {
       (item) =>
         item.id === invitationId &&
         item.businessId === businessId &&
+        item.purpose === "INVITE" &&
         !item.acceptedAt &&
         !item.revokedAt,
     );

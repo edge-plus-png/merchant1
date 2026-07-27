@@ -72,6 +72,8 @@ describe("merchant milestone store", () => {
       invitedByMembershipId: owner.id,
       name: "Alex Admin",
       email: "alex@example.com",
+      username: "alex",
+      usernameNormalized: "alex",
       role: "ADMIN",
       tokenHash: "invite-hash",
       expiresAt: new Date(Date.now() + 60_000),
@@ -139,6 +141,8 @@ describe("merchant milestone store", () => {
         invitedByMembershipId: null,
         name: "New Owner",
         email: "new-owner@example.com",
+        username: "new-owner",
+        usernameNormalized: "new-owner",
         role: "OWNER",
         tokenHash: "edge-owner-invite",
         expiresAt: new Date(now.getTime() + 60_000),
@@ -156,7 +160,7 @@ describe("merchant milestone store", () => {
     ).resolves.toBe("updated");
   });
 
-  it.each(["ADMIN", "MANAGER", "USER"] as PortalRole[])(
+  it.each(["ADMIN", "MANAGER", "USER", "LITE"] as PortalRole[])(
     "supports the %s merchant role",
     async (role) => {
       const { business, owner } = await createMerchantWithOwner();

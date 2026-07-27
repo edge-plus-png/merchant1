@@ -43,8 +43,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const result = await getPortalStore().acceptInvitation({
-    tokenHash: hashSessionToken(parsed.data.token),
+  const tokenHash = hashSessionToken(parsed.data.token);
+  const store = getPortalStore();
+  const invitation = await store.findInvitation(tokenHash);
+  const result = await store.acceptInvitation({
+    tokenHash,
     passwordHash: await hashPassword(parsed.data.password),
   });
 
@@ -55,5 +58,10 @@ export async function POST(request: Request) {
     );
   }
 
-  return redirectTo(request, "/login?invited=accepted");
+  return redirectTo(
+    request,
+    invitation?.purpose === "PASSWORD_RESET"
+      ? "/login?reset=accepted"
+      : "/login?invited=accepted",
+  );
 }

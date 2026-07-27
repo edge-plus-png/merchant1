@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import { UserManagement } from "@/components/user-management";
-import { canManageUsers } from "@/lib/auth/authorization";
+import {
+  canCompleteUsernameMigration,
+  canManageUsers,
+} from "@/lib/auth/authorization";
 import { requirePortalContext } from "@/lib/auth/session";
+import { suggestUsernames } from "@/lib/auth/username";
 import { getPortalStore } from "@/lib/portal-store";
 
 export const metadata: Metadata = { title: "Users" };
@@ -34,6 +38,20 @@ export default async function UsersPage({
     store.listPendingInvitations(context.business.id),
   ]);
   const canManage = canManageUsers(context.role);
+  const canMigrateUsernames = canCompleteUsernameMigration(context.role);
+  const generatedUsernames = new Map(
+    suggestUsernames(
+      users
+        .filter((user) => !user.username)
+        .map((user) => ({ membershipId: user.membershipId, email: user.email })),
+      [
+        ...users.flatMap((user) => (user.username ? [user.username] : [])),
+        ...invitations.flatMap((invitation) =>
+          invitation.username ? [invitation.username] : [],
+        ),
+      ],
+    ).map((item) => [item.membershipId, item.username]),
+  );
   const { error, updated } = await searchParams;
 
   return (
@@ -49,7 +67,9 @@ export default async function UsersPage({
         </p>
       ) : !canManage ? (
         <p className="read-only-notice" role="status">
-          An Owner or Admin can invite users and change access.
+          {context.role === "MANAGER"
+            ? "You can create reset links for eligible users. Owners and Admins manage roles and invitations."
+            : "An Owner or Admin can invite users and change access."}
         </p>
       ) : null}
 
@@ -68,10 +88,12 @@ export default async function UsersPage({
         actorRole={context.role}
         businessName={context.business.name}
         canManage={canManage}
+        canMigrateUsernames={canMigrateUsernames}
         invitations={invitations.map((invitation) => ({
           id: invitation.id,
           name: invitation.name,
           email: invitation.email,
+          username: invitation.username ?? null,
           role: invitation.role,
           expires: dateFormatter.format(invitation.expiresAt),
         }))}
@@ -79,6 +101,7 @@ export default async function UsersPage({
           membershipId: user.membershipId,
           name: user.name,
           email: user.email,
+          username: user.username ?? null,
           role: user.role,
           isActive: user.isActive,
           isActiveThisWeek: Boolean(user.lastActiveAt),
@@ -86,6 +109,11 @@ export default async function UsersPage({
           lastActive: user.lastActiveAt
             ? dateTimeFormatter.format(user.lastActiveAt)
             : "Not yet",
+        }))}
+        usernameLoginEnabled={Boolean(context.business.usernameLoginEnabledAt)}
+        usernameSuggestions={users.map((user) => ({
+          membershipId: user.membershipId,
+          username: user.username ?? generatedUsernames.get(user.membershipId) ?? "",
         }))}
       />
     </div>

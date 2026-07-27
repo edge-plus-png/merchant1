@@ -9,7 +9,7 @@ import { requireRequestSurface } from "@/lib/surface";
 const membershipChangeSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("role"),
-    role: z.enum(["OWNER", "ADMIN", "MANAGER", "USER"]),
+    role: z.enum(["OWNER", "ADMIN", "MANAGER", "USER", "LITE"]),
   }),
   z.object({
     action: z.literal("active"),

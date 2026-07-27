@@ -1,5 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { getDb } from "@/lib/db";
+import { canResetPassword } from "@/lib/auth/authorization";
+import { normalizeUsername, usernameSchema } from "@/lib/auth/username";
 import type { PortalStore } from "@/lib/portal-store/types";
 import type { MembershipRecord, PortalSessionRecord } from "@/lib/portal-types";
 
@@ -21,29 +23,38 @@ function toMembershipRecord(
     id: membership.id,
     role: membership.role,
     isActive: membership.isActive,
+    username: membership.username,
+    usernameNormalized: membership.usernameNormalized,
     user: membership.user,
     business: membership.business,
   };
 }
 
 export const prismaPortalStore: PortalStore = {
-  async findLoginMembership(email, businessId) {
-    const user = await getDb().portalUser.findUnique({
-      where: { email },
-      include: {
-        memberships: {
-          where: { isActive: true, businessId },
-          include: membershipInclude,
-          take: 1,
+  async findLoginMembership(identifier, businessId) {
+    const database = getDb();
+    const business = businessId
+      ? await database.business.findUnique({ where: { id: businessId } })
+      : null;
+    const usernameLoginEnabled = Boolean(business?.usernameLoginEnabledAt);
+    const membership = await database.businessMembership.findFirst({
+      where: {
+        businessId,
+        isActive: true,
+        ...(usernameLoginEnabled
+          ? { usernameNormalized: normalizeUsername(identifier) }
+          : {}),
+        user: {
+          status: "ACTIVE",
+          ...(usernameLoginEnabled
+            ? {}
+            : { email: identifier.trim().toLowerCase() }),
         },
       },
+      include: membershipInclude,
     });
 
-    if (!user || user.status !== "ACTIVE") {
-      return null;
-    }
-
-    return toMembershipRecord(user.memberships[0] ?? null);
+    return toMembershipRecord(membership);
   },
 
   async createSession(input) {
@@ -273,6 +284,7 @@ export const prismaPortalStore: PortalStore = {
       membershipId: membership.id,
       name: membership.user.name,
       email: membership.user.email,
+      username: membership.username,
       role: membership.role,
       isActive:
         membership.isActive && membership.user.status === "ACTIVE",
@@ -286,6 +298,7 @@ export const prismaPortalStore: PortalStore = {
     return getDb().portalUserInvitation.findMany({
       where: {
         businessId,
+        purpose: "INVITE",
         acceptedAt: null,
         revokedAt: null,
         expiresAt: { gt: new Date() },
@@ -300,7 +313,10 @@ export const prismaPortalStore: PortalStore = {
         const existingMember = await database.businessMembership.findFirst({
           where: {
             businessId: input.businessId,
-            user: { email: input.email },
+            OR: [
+              { user: { email: input.email } },
+              { usernameNormalized: input.usernameNormalized },
+            ],
           },
           select: { id: true },
         });
@@ -313,7 +329,11 @@ export const prismaPortalStore: PortalStore = {
           await database.portalUserInvitation.findFirst({
             where: {
               businessId: input.businessId,
-              email: input.email,
+              purpose: "INVITE",
+              OR: [
+                { email: input.email },
+                { usernameNormalized: input.usernameNormalized },
+              ],
               acceptedAt: null,
               revokedAt: null,
               expiresAt: { gt: new Date() },
@@ -325,10 +345,108 @@ export const prismaPortalStore: PortalStore = {
           return "already_invited" as const;
         }
 
-        return database.portalUserInvitation.create({ data: input });
+        return database.portalUserInvitation.create({
+          data: { ...input, purpose: "INVITE" },
+        });
       },
       { isolationLevel: "Serializable" },
     );
+  },
+
+  async createPasswordReset(input) {
+    return getDb().$transaction(
+      async (database) => {
+        const target = await database.businessMembership.findFirst({
+          where: { id: input.targetMembershipId, businessId: input.businessId },
+          include: { user: true },
+        });
+        if (!target) return { status: "not_found" as const };
+
+        if (!canResetPassword(input.actorRole, target.role)) {
+          return { status: "forbidden" as const };
+        }
+
+        if (input.actorRole !== "EDGE") {
+          const actor = input.actorMembershipId
+            ? await database.businessMembership.findFirst({
+                where: {
+                  id: input.actorMembershipId,
+                  businessId: input.businessId,
+                  isActive: true,
+                },
+                select: { id: true },
+              })
+            : null;
+          if (!actor) return { status: "forbidden" as const };
+        }
+
+        const resetFilter = {
+          purpose: "PASSWORD_RESET" as const,
+          createdAt: { gte: input.rateWindowStartedAt },
+        };
+        const [actorRequests, targetRequests] = await Promise.all([
+          database.portalUserInvitation.count({
+            where: { ...resetFilter, requestedByKey: input.actorKey },
+          }),
+          database.portalUserInvitation.count({
+            where: { ...resetFilter, targetMembershipId: target.id },
+          }),
+        ]);
+        if (actorRequests >= 3 || targetRequests >= 3) {
+          return { status: "rate_limited" as const };
+        }
+
+        await database.portalUserInvitation.updateMany({
+          where: {
+            purpose: "PASSWORD_RESET",
+            targetMembershipId: target.id,
+            acceptedAt: null,
+            revokedAt: null,
+          },
+          data: { revokedAt: new Date() },
+        });
+
+        const invitation = await database.portalUserInvitation.create({
+          data: {
+            businessId: input.businessId,
+            invitedByMembershipId: input.actorMembershipId,
+            targetMembershipId: target.id,
+            requestedByKey: input.actorKey,
+            purpose: "PASSWORD_RESET",
+            name: target.user.name,
+            email: target.user.email,
+            role: target.role,
+            tokenHash: input.tokenHash,
+            expiresAt: input.expiresAt,
+          },
+        });
+
+        await database.portalSession.deleteMany({
+          where: { membershipId: target.id },
+        });
+
+        if (input.actorRole !== "EDGE" && input.actorMembershipId) {
+          await database.portalUserSecurityAuditEvent.create({
+            data: {
+              businessId: input.businessId,
+              actorMembershipId: input.actorMembershipId,
+              targetMembershipId: target.id,
+              action: "PASSWORD_RESET_REQUESTED",
+            },
+          });
+        }
+
+        return { status: "created" as const, invitation };
+      },
+      { isolationLevel: "Serializable" },
+    );
+  },
+
+  async listUserSecurityAudits(businessId) {
+    return getDb().portalUserSecurityAuditEvent.findMany({
+      where: { businessId },
+      orderBy: { createdAt: "asc" },
+    });
   },
 
   async findInvitation(tokenHash) {
@@ -359,6 +477,34 @@ export const prismaPortalStore: PortalStore = {
             return "invalid" as const;
           }
 
+          if (invitation.purpose === "PASSWORD_RESET") {
+            const target = invitation.targetMembershipId
+              ? await database.businessMembership.findFirst({
+                  where: {
+                    id: invitation.targetMembershipId,
+                    businessId: invitation.businessId,
+                  },
+                  include: { user: true },
+                })
+              : null;
+            if (!target || target.user.email !== invitation.email) {
+              return "invalid" as const;
+            }
+
+            await database.portalUser.update({
+              where: { id: target.userId },
+              data: { passwordHash, status: "ACTIVE" },
+            });
+            await database.portalSession.deleteMany({
+              where: { membershipId: target.id },
+            });
+            await database.portalUserInvitation.update({
+              where: { id: invitation.id },
+              data: { acceptedAt: new Date() },
+            });
+            return "accepted" as const;
+          }
+
           const existingMembership =
             await database.businessMembership.findFirst({
               where: {
@@ -369,6 +515,30 @@ export const prismaPortalStore: PortalStore = {
             });
 
           if (existingMembership) {
+            return "already_member" as const;
+          }
+
+          const business = await database.business.findUnique({
+            where: { id: invitation.businessId },
+          });
+          if (
+            !business ||
+            (business.usernameLoginEnabledAt &&
+              (!invitation.username || !invitation.usernameNormalized))
+          ) {
+            return "invalid" as const;
+          }
+
+          if (
+            invitation.usernameNormalized &&
+            (await database.businessMembership.findFirst({
+              where: {
+                businessId: invitation.businessId,
+                usernameNormalized: invitation.usernameNormalized,
+              },
+              select: { id: true },
+            }))
+          ) {
             return "already_member" as const;
           }
 
@@ -391,6 +561,8 @@ export const prismaPortalStore: PortalStore = {
               businessId: invitation.businessId,
               userId: user.id,
               role: invitation.role,
+              username: invitation.username,
+              usernameNormalized: invitation.usernameNormalized,
             },
           });
           await database.portalUserInvitation.update({
@@ -416,11 +588,99 @@ export const prismaPortalStore: PortalStore = {
     }
   },
 
+  async completeUsernameMigration({ businessId, assignments }) {
+    try {
+      return await getDb().$transaction(
+        async (database) => {
+          const business = await database.business.findUnique({
+            where: { id: businessId },
+          });
+          if (!business) return "invalid" as const;
+          if (business.usernameLoginEnabledAt) return "already_completed" as const;
+
+          const [memberships, pendingInvitations] = await Promise.all([
+            database.businessMembership.findMany({
+              where: { businessId },
+              select: { id: true },
+            }),
+            database.portalUserInvitation.findMany({
+              where: {
+                businessId,
+                purpose: "INVITE",
+                acceptedAt: null,
+                revokedAt: null,
+                expiresAt: { gt: new Date() },
+              },
+              select: { usernameNormalized: true },
+            }),
+          ]);
+
+          if (pendingInvitations.some((item) => !item.usernameNormalized)) {
+            return "pending_invitation_conflict" as const;
+          }
+
+          const expectedIds = new Set(memberships.map((item) => item.id));
+          const normalized = new Set<string>();
+          const reserved = new Set(
+            pendingInvitations.flatMap((item) =>
+              item.usernameNormalized ? [item.usernameNormalized] : [],
+            ),
+          );
+          if (
+            assignments.length !== memberships.length ||
+            assignments.some((assignment) => {
+              const valid = usernameSchema.safeParse(assignment.username).success;
+              const canonical = normalizeUsername(assignment.username);
+              const invalid =
+                !expectedIds.delete(assignment.membershipId) ||
+                !valid ||
+                assignment.usernameNormalized !== canonical ||
+                normalized.has(canonical) ||
+                reserved.has(canonical);
+              normalized.add(canonical);
+              return invalid;
+            }) ||
+            expectedIds.size !== 0
+          ) {
+            return "invalid" as const;
+          }
+
+          for (const assignment of assignments) {
+            await database.businessMembership.update({
+              where: { id: assignment.membershipId },
+              data: {
+                username: assignment.username.trim(),
+                usernameNormalized: assignment.usernameNormalized,
+              },
+            });
+          }
+          await database.business.update({
+            where: { id: businessId },
+            data: { usernameLoginEnabledAt: new Date() },
+          });
+          return "completed" as const;
+        },
+        { isolationLevel: "Serializable" },
+      );
+    } catch (error) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        error.code === "P2002"
+      ) {
+        return "invalid";
+      }
+      throw error;
+    }
+  },
+
   async revokeInvitation({ businessId, invitationId }) {
     const result = await getDb().portalUserInvitation.updateMany({
       where: {
         id: invitationId,
         businessId,
+        purpose: "INVITE",
         acceptedAt: null,
         revokedAt: null,
       },

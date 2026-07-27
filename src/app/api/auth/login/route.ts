@@ -12,7 +12,8 @@ import { getPortalStore } from "@/lib/portal-store";
 import { getRequestOrigin, requireRequestSurface } from "@/lib/surface";
 
 const credentialsSchema = z.object({
-  email: z.string().email().transform((value) => value.trim().toLowerCase()),
+  email: z.string().email().transform((value) => value.trim().toLowerCase()).optional(),
+  username: z.string().trim().min(1).max(64).optional(),
   password: z.string().min(1).max(256),
   state: z.string().max(2048).optional(),
 });
@@ -55,7 +56,9 @@ export async function POST(request: Request) {
   }
 
   const membership = await store.findLoginMembership(
-    parsed.data.email,
+    business.usernameLoginEnabledAt
+      ? (parsed.data.username ?? "")
+      : (parsed.data.email ?? ""),
     business.id,
   );
   const passwordMatches = membership

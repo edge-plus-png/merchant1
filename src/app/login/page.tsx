@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/login-form";
 import { Logo } from "@/components/logo";
 import { MerchantIllustration } from "@/components/merchant-illustration";
 import { getPortalContext } from "@/lib/auth/session";
+import { getPortalStore } from "@/lib/portal-store";
 import { getHQContext } from "@/lib/hq-auth/session";
 import { getHQStore } from "@/lib/hq-store";
 import { getPortalSurface } from "@/lib/surface";
@@ -16,11 +18,13 @@ export default async function LoginPage({
   searchParams: Promise<{
     error?: string;
     invited?: string;
+    reset?: string;
     setup?: string;
     state?: string;
   }>;
 }) {
   const surface = await getPortalSurface();
+  const requestHeaders = await headers();
 
   if (surface === "HQ") {
     if (!(await getHQStore().isSetupComplete())) {
@@ -34,7 +38,14 @@ export default async function LoginPage({
     redirect("/business");
   }
 
-  const { error, invited, setup, state } = await searchParams;
+  const { error, invited, reset, setup, state } = await searchParams;
+  const host =
+    requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
+  const protocol = requestHeaders.get("x-forwarded-proto") ?? "https";
+  const merchantBusiness =
+    surface === "MERCHANT" && host
+      ? await getPortalStore().findLocalBusiness(`${protocol}://${host}`)
+      : null;
 
   return (
     <main className="login-page">
@@ -67,6 +78,11 @@ export default async function LoginPage({
               Your account is ready. Sign in to continue.
             </p>
           ) : null}
+          {reset === "accepted" ? (
+            <p className="success-notice login-success" role="status">
+              Your password has been updated. Sign in to continue.
+            </p>
+          ) : null}
           {error === "expired" ? (
             <p className="form-error" role="alert">
               Your MFA sign-in expired. Enter your username and password again.
@@ -75,7 +91,11 @@ export default async function LoginPage({
           <LoginForm
             action={surface === "HQ" ? "/api/hq-auth/login" : "/api/auth/login"}
             hasError={error === "invalid"}
-            identifier={surface === "HQ" ? "username" : "email"}
+            identifier={
+              surface === "HQ" || merchantBusiness?.usernameLoginEnabledAt
+                ? "username"
+                : "email"
+            }
             returnState={surface === "MERCHANT" ? state : undefined}
           />
         </div>

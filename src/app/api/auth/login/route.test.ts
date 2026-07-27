@@ -35,9 +35,9 @@ vi.mock("@/lib/portal-store", () => ({
 import { createApplicationReturnState } from "@/lib/application-routing/return-state";
 import { POST } from "@/app/api/auth/login/route";
 
-function loginRequest(state: string) {
+function loginRequest(state: string, identifier: "email" | "username" = "email") {
   const body = new URLSearchParams({
-    email: "owner@example.com",
+    [identifier]: identifier === "email" ? "owner@example.com" : "MerchantOwner",
     password: "password",
     state,
   });
@@ -91,5 +91,30 @@ describe("merchant login application return state", () => {
     expect(response.headers.get("location")).toBe(
       "https://merchant.example/business",
     );
+  });
+
+  it("uses username exclusively after the business completes cutover", async () => {
+    mocks.findLocalBusiness.mockResolvedValue({
+      id: "business-1",
+      usernameLoginEnabledAt: new Date(),
+    });
+    mocks.findLoginMembership.mockImplementation(async (identifier: string) =>
+      identifier ? { id: "membership-1", user: { passwordHash: "hash" } } : null,
+    );
+
+    const usernameResponse = await POST(loginRequest("", "username"));
+    expect(usernameResponse.headers.get("location")).toBe(
+      "https://merchant.example/business",
+    );
+    expect(mocks.findLoginMembership).toHaveBeenLastCalledWith(
+      "MerchantOwner",
+      "business-1",
+    );
+
+    const emailResponse = await POST(loginRequest("", "email"));
+    expect(emailResponse.headers.get("location")).toBe(
+      "https://merchant.example/login?error=invalid",
+    );
+    expect(mocks.findLoginMembership).toHaveBeenLastCalledWith("", "business-1");
   });
 });
