@@ -2903,37 +2903,234 @@ body {
 .username-migration-form {
   display: grid;
   margin-top: 24px;
-  gap: 18px;
+  gap: 20px;
 }
 
-.username-migration-list {
-  display: grid;
-  gap: 12px;
+.username-migration-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
 }
 
-.username-migration-list label {
+.username-migration-heading .legacy-section-heading {
+  max-width: 680px;
+}
+
+.username-migration-progress {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) minmax(220px, 0.8fr);
+  min-width: 132px;
+  padding: 12px 16px;
+  gap: 3px;
+  border: 1px solid #d8e0ec;
+  border-radius: 14px;
+  background: #f8fafc;
+  text-align: center;
+}
+
+.username-migration-progress strong {
+  color: #0c1424;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.username-migration-progress span {
+  color: var(--edge-muted);
+  font-size: 0.69rem;
+}
+
+.username-migration-table {
+  overflow: hidden;
+  border: 1px solid var(--edge-border);
+  border-radius: 18px;
+  background: #fff;
+}
+
+.username-migration-table-header,
+.username-migration-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.8fr) minmax(220px, 1.2fr) minmax(220px, 1fr);
   align-items: center;
   gap: 18px;
 }
 
-.username-migration-list label > span {
+.username-migration-table-header {
+  padding: 13px 16px;
+  color: #526b90;
+  background: #f8fafc;
+  font-size: 0.65rem;
+  font-weight: 650;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.username-migration-row {
+  min-height: 72px;
+  padding: 11px 16px;
+  border-top: 1px solid var(--edge-border);
+}
+
+.username-migration-row > strong {
+  color: #0c1424;
+  font-size: 0.82rem;
+}
+
+.username-migration-email {
+  overflow-wrap: anywhere;
+  color: #64748b;
+  font-size: 0.76rem;
+}
+
+.username-migration-row label {
   display: grid;
-  gap: 3px;
+  gap: 7px;
 }
 
-.username-migration-list small {
-  color: var(--edge-muted);
+.username-migration-mobile-label {
+  display: none;
+  color: #526b90;
+  font-size: 0.67rem;
+  font-weight: 650;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
 }
 
-.username-migration-list input {
+.username-migration-row input {
+  width: 100%;
   min-height: 48px;
   padding: 0 14px;
   border: 1px solid #d8e0ec;
   border-radius: 14px;
   background: #f8fafc;
   font: inherit;
+}
+
+.username-migration-row input:focus {
+  border-color: var(--edge-blue);
+  box-shadow: 0 0 0 3px rgb(19 110 246 / 14%);
+  outline: none;
+}
+
+.username-migration-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.username-migration-actions p {
+  margin: 0;
+  color: var(--edge-muted);
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+.username-migration-actions .merchant-primary-button {
+  flex: 0 0 auto;
+  padding-right: 24px;
+  padding-left: 24px;
+}
+
+.username-confirmation-dialog {
+  width: min(92vw, 520px);
+  padding: 0;
+  border: 1px solid var(--edge-border);
+  border-radius: 24px;
+  color: #0c1424;
+  background: #fff;
+  box-shadow: 0 30px 90px rgb(15 23 42 / 24%);
+}
+
+.username-confirmation-dialog::backdrop {
+  background: rgb(15 23 42 / 48%);
+  backdrop-filter: blur(3px);
+}
+
+.username-confirmation-content {
+  display: grid;
+  padding: 28px;
+  gap: 14px;
+}
+
+.username-confirmation-content h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  letter-spacing: -0.025em;
+}
+
+.username-confirmation-content p {
+  margin: 0;
+  color: #465a78;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.username-confirmation-content .username-confirmation-warning {
+  padding: 12px 14px;
+  border: 1px solid #f1d69d;
+  border-radius: 12px;
+  color: #6e4b05;
+  background: #fff9eb;
+  font-weight: 620;
+}
+
+.username-confirmation-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+  gap: 10px;
+}
+
+.username-confirmation-actions .table-action-button,
+.username-confirmation-actions .merchant-primary-button {
+  min-height: 44px;
+}
+
+.username-login-active {
+  display: flex;
+  align-items: flex-start;
+  padding: 22px 24px;
+  gap: 16px;
+  border: 1px solid #bfe3cc;
+  border-radius: 22px;
+  background: #f2fbf5;
+}
+
+.username-login-active-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: #16834a;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.username-login-active > div {
+  display: grid;
+  gap: 5px;
+}
+
+.username-login-active h2 {
+  margin: 0;
+  color: #103e25;
+  font-size: 1rem;
+  font-weight: 680;
+}
+
+.username-login-active p {
+  margin: 0;
+  color: #315e43;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.username-login-active small {
+  color: #52725f;
+  font-size: 0.7rem;
 }
 
 .legacy-form-message {
@@ -3063,6 +3260,14 @@ body {
   font-size: 0.71rem;
 }
 
+.legacy-user-cell .user-login-identity {
+  color: #304766;
+}
+
+.user-login-identity b {
+  font-weight: 680;
+}
+
 .inline-role-form select {
   border-radius: 10px;
   background: #f8fafc;
@@ -3139,10 +3344,53 @@ body {
 
   .user-summary,
   .legacy-invite-grid,
-  .username-migration-list label,
   .business-form-grid,
   .role-guidance {
     grid-template-columns: 1fr;
+  }
+
+  .username-migration-heading,
+  .username-migration-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .username-migration-progress {
+    width: fit-content;
+    min-width: 132px;
+    text-align: left;
+  }
+
+  .username-migration-table-header {
+    display: none;
+  }
+
+  .username-migration-row {
+    grid-template-columns: 1fr;
+    padding: 18px;
+    gap: 7px;
+  }
+
+  .username-migration-row:first-of-type {
+    border-top: 0;
+  }
+
+  .username-migration-row label {
+    margin-top: 7px;
+  }
+
+  .username-migration-mobile-label {
+    display: block;
+  }
+
+  .username-migration-actions .merchant-primary-button,
+  .username-confirmation-actions .merchant-primary-button,
+  .username-confirmation-actions .table-action-button {
+    width: 100%;
+  }
+
+  .username-confirmation-actions {
+    flex-direction: column-reverse;
   }
 
   .user-summary > div {

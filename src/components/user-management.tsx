@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
   canResetPassword,
@@ -52,6 +52,7 @@ export function UserManagement({
   actorRole,
   businessName,
   usernameLoginEnabled,
+  usernameLoginEnabledAt,
   canMigrateUsernames,
   usernameSuggestions,
 }: {
@@ -61,6 +62,7 @@ export function UserManagement({
   actorRole: PortalActorRole;
   businessName: string;
   usernameLoginEnabled: boolean;
+  usernameLoginEnabledAt: string | null;
   canMigrateUsernames: boolean;
   usernameSuggestions: Array<{ membershipId: string; username: string }>;
 }) {
@@ -76,6 +78,7 @@ export function UserManagement({
   const [resettingMembershipId, setResettingMembershipId] = useState("");
   const [migrationError, setMigrationError] = useState("");
   const [migrating, setMigrating] = useState(false);
+  const usernameConfirmationDialog = useRef<HTMLDialogElement>(null);
   const [usernames, setUsernames] = useState<Record<string, string>>(
     Object.fromEntries(
       usernameSuggestions.map((item) => [item.membershipId, item.username]),
@@ -144,8 +147,7 @@ export function UserManagement({
     await navigator.clipboard.writeText(resetUrl);
   }
 
-  async function completeUsernameMigration(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function completeUsernameMigration() {
     setMigrating(true);
     setMigrationError("");
     const response = await fetch("/api/portal/users/usernames", {
@@ -161,10 +163,16 @@ export function UserManagement({
     const result = (await response.json()) as { error?: string };
     setMigrating(false);
     if (!response.ok) {
+      usernameConfirmationDialog.current?.close();
       setMigrationError(result.error ?? "Username login could not be enabled.");
       return;
     }
     router.refresh();
+  }
+
+  function reviewUsernameMigration(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    usernameConfirmationDialog.current?.showModal();
   }
 
   const activeCount = users.filter((user) => user.isActive).length;
@@ -174,56 +182,139 @@ export function UserManagement({
   const activeThisWeek = users.filter((user) => user.isActiveThisWeek).length;
   const showActions =
     canManage || users.some((user) => canResetPassword(actorRole, user.role));
+  const validUsernameCount = users.filter((user) =>
+    /^[A-Za-z0-9_-]{3,64}$/.test(usernames[user.membershipId] ?? ""),
+  ).length;
+  const allUsernamesReady = validUsernameCount === users.length && users.length > 0;
 
   return (
     <div className="legacy-user-management">
       {!usernameLoginEnabled && canMigrateUsernames ? (
         <section className="legacy-surface username-migration-panel">
-          <div className="legacy-section-heading">
-            <h2>Enable username login</h2>
-            <p>
-              Review every username before switching this merchant from email to
-              username-only login.
-            </p>
+          <div className="username-migration-heading">
+            <div className="legacy-section-heading">
+              <h2>Switch login from email to username</h2>
+              <p>
+                Review the login username for every user before making the switch.
+              </p>
+            </div>
+            <div className="username-migration-progress" role="status">
+              <strong>
+                {validUsernameCount} of {users.length}
+              </strong>
+              <span>usernames ready</span>
+            </div>
           </div>
-          <form className="username-migration-form" onSubmit={completeUsernameMigration}>
+          <form className="username-migration-form" onSubmit={reviewUsernameMigration}>
             {migrationError ? (
               <p className="form-error legacy-form-message" role="alert">
                 {migrationError}
               </p>
             ) : null}
-            <div className="username-migration-list">
+            <div className="username-migration-table" role="table">
+              <div className="username-migration-table-header" role="row">
+                <span role="columnheader">User</span>
+                <span role="columnheader">Email address</span>
+                <span role="columnheader">New login username</span>
+              </div>
               {users.map((user) => (
-                <label key={user.membershipId}>
-                  <span>
-                    <strong>{user.name}</strong>
-                    <small>{user.email}</small>
+                <div className="username-migration-row" key={user.membershipId} role="row">
+                  <strong role="cell">{user.name}</strong>
+                  <span className="username-migration-email" role="cell">
+                    {user.email}
                   </span>
-                  <input
-                    autoCapitalize="none"
-                    autoComplete="off"
-                    maxLength={64}
-                    minLength={3}
-                    onChange={(event) =>
-                      setUsernames((current) => ({
-                        ...current,
-                        [user.membershipId]: event.target.value,
-                      }))
-                    }
-                    pattern="[A-Za-z0-9_-]+"
-                    required
-                    value={usernames[user.membershipId] ?? ""}
-                  />
-                </label>
+                  <label role="cell">
+                    <span className="username-migration-mobile-label">
+                      New login username
+                    </span>
+                    <input
+                      aria-label={`Login username for ${user.name}`}
+                      autoCapitalize="none"
+                      autoComplete="off"
+                      maxLength={64}
+                      minLength={3}
+                      onChange={(event) =>
+                        setUsernames((current) => ({
+                          ...current,
+                          [user.membershipId]: event.target.value,
+                        }))
+                      }
+                      pattern="[A-Za-z0-9_-]+"
+                      required
+                      value={usernames[user.membershipId] ?? ""}
+                    />
+                  </label>
+                </div>
               ))}
             </div>
-            <p className="field-help">
-              Confirming disables email login immediately for every account.
-            </p>
-            <button className="merchant-primary-button" disabled={migrating} type="submit">
-              {migrating ? "Enabling…" : "Confirm usernames and enable login"}
-            </button>
+            <div className="username-migration-actions">
+              <p>
+                Usernames use 3–64 letters, numbers, underscores or hyphens.
+              </p>
+              <button
+                className="merchant-primary-button"
+                disabled={!allUsernamesReady || migrating}
+                type="submit"
+              >
+                Confirm usernames and switch off email login
+              </button>
+            </div>
           </form>
+
+          <dialog
+            aria-labelledby="username-confirmation-title"
+            className="username-confirmation-dialog"
+            ref={usernameConfirmationDialog}
+          >
+            <div className="username-confirmation-content">
+              <h2 id="username-confirmation-title">Switch to username login?</h2>
+              <p>
+                After this change, {users.length === 1 ? "this user must" : `all ${users.length} users must`} sign in with the usernames shown above. Email
+                addresses will no longer work for login.
+              </p>
+              <p className="username-confirmation-warning">
+                This change cannot be undone from the Portal.
+              </p>
+              <div className="username-confirmation-actions">
+                <button
+                  className="table-action-button"
+                  disabled={migrating}
+                  onClick={() => usernameConfirmationDialog.current?.close()}
+                  type="button"
+                >
+                  Cancel
+                </button>
+                <button
+                  className="merchant-primary-button"
+                  disabled={migrating}
+                  onClick={completeUsernameMigration}
+                  type="button"
+                >
+                  {migrating ? "Switching…" : "Confirm and switch login"}
+                </button>
+              </div>
+            </div>
+          </dialog>
+        </section>
+      ) : null}
+
+      {usernameLoginEnabled ? (
+        <section className="username-login-active" role="status">
+          <span className="username-login-active-icon" aria-hidden="true">
+            ✓
+          </span>
+          <div>
+            <h2>Username login is active</h2>
+            <p>
+              {users.length === 1
+                ? "This user signs in with a username."
+                : `All ${users.length} current users sign in with usernames.`}{" "}
+              Email addresses remain as contact information only.
+            </p>
+            {usernameLoginEnabledAt ? (
+              <small>Enabled {usernameLoginEnabledAt}</small>
+            ) : null}
+          </div>
         </section>
       ) : null}
 
@@ -400,10 +491,12 @@ export function UserManagement({
                     <td data-label="User">
                       <div className="legacy-user-cell">
                         <strong>{user.name}</strong>
-                        <span>
-                          {user.username ? `${user.username} · ` : ""}
-                          {user.email}
-                        </span>
+                        {user.username ? (
+                          <span className="user-login-identity">
+                            <b>Username:</b> {user.username}
+                          </span>
+                        ) : null}
+                        <span>{user.email}</span>
                       </div>
                     </td>
                     <td data-label="Merchant">{businessName}</td>
@@ -494,10 +587,12 @@ export function UserManagement({
                   <td data-label="User">
                     <div className="legacy-user-cell">
                       <strong>{invitation.name}</strong>
-                      <span>
-                        {invitation.username ? `${invitation.username} · ` : ""}
-                        {invitation.email}
-                      </span>
+                      {invitation.username ? (
+                        <span className="user-login-identity">
+                          <b>Username:</b> {invitation.username}
+                        </span>
+                      ) : null}
+                      <span>{invitation.email}</span>
                     </div>
                   </td>
                   <td data-label="Merchant">{businessName}</td>

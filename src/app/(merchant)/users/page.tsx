@@ -111,6 +111,11 @@ export default async function UsersPage({
             : "Not yet",
         }))}
         usernameLoginEnabled={Boolean(context.business.usernameLoginEnabledAt)}
+        usernameLoginEnabledAt={
+          context.business.usernameLoginEnabledAt
+            ? dateTimeFormatter.format(context.business.usernameLoginEnabledAt)
+            : null
+        }
         usernameSuggestions={users.map((user) => ({
           membershipId: user.membershipId,
           username: user.username ?? generatedUsernames.get(user.membershipId) ?? "",
